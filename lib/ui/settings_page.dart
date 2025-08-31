@@ -11,34 +11,27 @@ class SettingsPage extends StatefulWidget {
 }
 
 class _SettingsPageState extends State<SettingsPage> {
-  late TextEditingController _repoUrlController;
   String? _selectedResolution;
   int? _selectedIntervalMinutes;
+  late TextEditingController _customUrlController;
 
   @override
   void initState() {
     super.initState();
-    // Initialize controller with the current URL from the state
-    _repoUrlController = TextEditingController(
-      text: Provider.of<AppState>(context, listen: false).repoUrl,
-    );
-    _selectedResolution =
-        Provider.of<AppState>(context, listen: false).currentResolution;
-    _selectedIntervalMinutes =
-        Provider.of<AppState>(context, listen: false).wallpaperIntervalMinutes;
+    final appState = Provider.of<AppState>(context, listen: false);
+    _selectedResolution = appState.currentResolution;
+    _selectedIntervalMinutes = appState.wallpaperIntervalMinutes;
+    _customUrlController = TextEditingController(text: appState.customRepoUrl);
   }
 
   @override
   void dispose() {
-    _repoUrlController.dispose();
+    _customUrlController.dispose();
     super.dispose();
   }
 
   void _saveSettings() {
     final appState = Provider.of<AppState>(context, listen: false);
-    if (_repoUrlController.text.isNotEmpty) {
-      appState.updateRepoUrl(_repoUrlController.text);
-    }
     if (_selectedResolution != null) {
       appState.updateResolution(_selectedResolution!);
     }
@@ -68,31 +61,18 @@ class _SettingsPageState extends State<SettingsPage> {
   @override
   Widget build(BuildContext context) {
     return ScaffoldPage(
-      header: const PageHeader(title: Text('Settings')),
-      content: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Consumer<AppState>(
-          builder: (context, appState, child) {
-            return Column(
+      padding: const EdgeInsets.symmetric(vertical: 0.0),
+      content: Consumer<AppState>(
+        builder: (context, appState, child) {
+          return Padding(
+            padding: const EdgeInsets.only(
+              bottom: 16.0,
+              left: 16.0,
+              right: 16.0,
+            ),
+            child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('GitHub Repository URL'),
-                const SizedBox(height: 8.0),
-                TextBox(
-                  controller: _repoUrlController,
-                  placeholder: 'e.g., https://github.com/user/repo',
-                ),
-                const SizedBox(height: 8.0),
-                const Text(
-                  'For the default repository, images should be in the format: GitWall-WP/Weekly/DayOfWeek/DayOfWeek_Resolution.png (e.g., GitWall-WP/Weekly/Monday/Monday_1920x1080.png). For custom repositories, any image in the main branch will be randomly selected. More info on GitHub.',
-                  style: TextStyle(fontSize: 12),
-                ),
-                const SizedBox(height: 24.0),
-                FilledButton(
-                  onPressed: _saveSettings,
-                  child: const Text('Save and Refresh'),
-                ),
-                const SizedBox(height: 24.0),
                 const Text('Wallpaper Resolution'),
                 const SizedBox(height: 8.0),
                 ComboBox<String>(
@@ -179,10 +159,18 @@ class _SettingsPageState extends State<SettingsPage> {
                         ),
                       ),
                 ),
+                const SizedBox(height: 30),
+                const Text('Custom Repository URL'),
+                const SizedBox(height: 8.0),
+                TextBox(
+                  controller: _customUrlController,
+                  placeholder: 'Enter custom repository URL',
+                  onChanged: (value) => appState.setCustomRepoUrl(value),
+                ),
               ],
-            );
-          },
-        ),
+            ),
+          );
+        },
       ),
     );
   }

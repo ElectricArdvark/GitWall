@@ -15,6 +15,7 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> with WindowListener {
   final SystemTray _systemTray = SystemTray();
   int _navigationIndex = 0;
+  int _selectedTabIndex = 0;
 
   @override
   void initState() {
@@ -70,13 +71,14 @@ class _HomePageState extends State<HomePage> with WindowListener {
       builder: (context, appState, child) {
         return NavigationView(
           appBar: const NavigationAppBar(
+            title: Text('GitWall'),
             automaticallyImplyLeading: false,
-            height: 0,
           ),
           pane: NavigationPane(
+            size: const NavigationPaneSize(openMaxWidth: 220),
             selected: _navigationIndex,
             onChanged: (index) => setState(() => _navigationIndex = index),
-            displayMode: PaneDisplayMode.compact,
+            displayMode: PaneDisplayMode.minimal,
             items: [
               PaneItem(
                 icon: const Icon(FluentIcons.home),
@@ -89,6 +91,30 @@ class _HomePageState extends State<HomePage> with WindowListener {
                 body: const SettingsPage(),
               ),
             ],
+            footerItems: [
+              PaneItemHeader(
+                header: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: DropDownButton(
+                    title: Text(appState.activeTab),
+                    items: [
+                      MenuFlyoutItem(
+                        text: const Text('Weekly'),
+                        onPressed: () => appState.setActiveTab('Weekly'),
+                      ),
+                      MenuFlyoutItem(
+                        text: const Text('Multi'),
+                        onPressed: () => appState.setActiveTab('Multi'),
+                      ),
+                      MenuFlyoutItem(
+                        text: const Text('Custom'),
+                        onPressed: () => appState.setActiveTab('Custom'),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
           ),
         );
       },
@@ -96,60 +122,101 @@ class _HomePageState extends State<HomePage> with WindowListener {
   }
 
   Widget _buildHomePageContent(AppState appState) {
+    const tabs = ['Weekly', 'Multi', 'Custom'];
+
     return ScaffoldPage(
-      header: const PageHeader(title: Text('Status')),
-      content: Padding(
-        padding: const EdgeInsets.all(8.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(12.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Last Status Update',
-                      style: TextStyle(fontWeight: FontWeight.bold),
+      padding: const EdgeInsets.symmetric(vertical: 0.0),
+      content: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Flexible(
+            child: Padding(
+              padding: const EdgeInsets.only(left: 16.0, right: 16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: List.generate(tabs.length, (index) {
+                      return Padding(
+                        padding: const EdgeInsets.only(right: 8.0),
+                        child:
+                            _selectedTabIndex == index
+                                ? FilledButton(
+                                  onPressed: () {},
+                                  child: Text(tabs[index]),
+                                )
+                                : Button(
+                                  onPressed:
+                                      () => setState(
+                                        () => _selectedTabIndex = index,
+                                      ),
+                                  child: Text(tabs[index]),
+                                ),
+                      );
+                    }),
+                  ),
+                  const SizedBox(height: 10),
+                  SizedBox(
+                    height: 20,
+                    child: IndexedStack(
+                      index: _selectedTabIndex,
+                      children: const [
+                        Center(
+                          child: Text(
+                            'Uses the default repository for weekly wallpapers.',
+                          ),
+                        ),
+                        Center(
+                          child: Text(
+                            'Uses a repository with multiple resolutions.',
+                          ),
+                        ),
+                        Center(child: Text('Uses a custom repository URL.')),
+                      ],
                     ),
-                    const SizedBox(height: 8),
-                    Text(appState.status),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
-            const SizedBox(height: 20),
+          ),
+          const SizedBox(height: 10),
+          const Text(
+            'Wallpaper Preview:',
+            style: TextStyle(fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 5),
+          SizedBox(
+            height: 300,
+            child: Container(
+              width: double.infinity,
+              decoration: BoxDecoration(
+                border: Border.all(color: Colors.grey[100]),
+                borderRadius: BorderRadius.circular(4.0),
+              ),
+              child:
+                  appState.currentWallpaperFile != null &&
+                          appState.currentWallpaperFile!.existsSync()
+                      ? Image.file(
+                        appState.currentWallpaperFile!,
+                        fit: BoxFit.fill,
+                        key: ValueKey(appState.currentWallpaperFile!.path),
+                      )
+                      : const Center(
+                        child: Text('No wallpaper preview available.'),
+                      ),
+            ),
+          ),
+        ],
+      ),
+      bottomBar: Padding(
+        padding: const EdgeInsets.all(8.0),
+        child: Row(
+          children: [
+            Text('Status: ${appState.status}'),
+            const Spacer(),
             FilledButton(
               onPressed: () => appState.updateWallpaper(isManual: true),
-              child: const Text('Force Refresh Now'),
-            ),
-            const SizedBox(height: 20),
-            const Text(
-              'Current Wallpaper Preview:',
-              style: TextStyle(fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 10),
-            Expanded(
-              child: Container(
-                width: double.infinity,
-                decoration: BoxDecoration(
-                  border: Border.all(color: Colors.grey[100]),
-                  borderRadius: BorderRadius.circular(4.0),
-                ),
-                child:
-                    appState.currentWallpaperFile != null &&
-                            appState.currentWallpaperFile!.existsSync()
-                        ? Image.file(
-                          appState.currentWallpaperFile!,
-                          fit: BoxFit.cover,
-                          // Add a key to force rebuild when the file changes
-                          key: ValueKey(appState.currentWallpaperFile!.path),
-                        )
-                        : const Center(
-                          child: Text('No wallpaper preview available.'),
-                        ),
-              ),
+              child: const Text('Force Refresh'),
             ),
           ],
         ),

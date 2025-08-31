@@ -25,6 +25,12 @@ class AppState extends ChangeNotifier {
   String _repoUrl = "";
   String get repoUrl => _repoUrl;
 
+  String _customRepoUrl = "";
+  String get customRepoUrl => _customRepoUrl;
+
+  String _activeTab = "Weekly";
+  String get activeTab => _activeTab;
+
   File? _currentWallpaperFile;
   File? get currentWallpaperFile => _currentWallpaperFile;
 
@@ -45,6 +51,8 @@ class AppState extends ChangeNotifier {
 
   Future<void> _initialize() async {
     _repoUrl = await _settingsService.getRepoUrl();
+    _customRepoUrl = await _settingsService.getCustomRepoUrl();
+    _activeTab = await _settingsService.getActiveTab();
     _autostartEnabled = await _settingsService.isAutostartEnabled();
     _currentResolution = await _settingsService.getResolution();
     _wallpaperIntervalMinutes = await _settingsService.getWallpaperInterval();
@@ -73,6 +81,22 @@ class AppState extends ChangeNotifier {
     await _settingsService.saveRepoUrl(newUrl);
     notifyListeners();
     // Trigger an update with the new repository
+    await updateWallpaper(isManual: true);
+  }
+
+  Future<void> setCustomRepoUrl(String url) async {
+    _customRepoUrl = url;
+    await _settingsService.saveCustomRepoUrl(url);
+    notifyListeners();
+    if (_activeTab == 'Custom') {
+      await updateWallpaper(isManual: true);
+    }
+  }
+
+  Future<void> setActiveTab(String tab) async {
+    _activeTab = tab;
+    await _settingsService.saveActiveTab(tab);
+    notifyListeners();
     await updateWallpaper(isManual: true);
   }
 
@@ -117,7 +141,27 @@ class AppState extends ChangeNotifier {
       downloadResult; // Changed to late and non-nullable
       String? downloadedFileName;
 
-      if (_repoUrl == defaultRepoUrl) {
+      String repoUrlToUse;
+      switch (_activeTab) {
+        case 'Weekly':
+          repoUrlToUse = defaultRepoUrl;
+          break;
+        case 'Multi':
+          repoUrlToUse = 'https://github.com/ElectricArdvark/GitWall-WP';
+          break;
+        case 'Custom':
+          repoUrlToUse = _customRepoUrl;
+          break;
+        default:
+          repoUrlToUse = defaultRepoUrl;
+      }
+
+      if (repoUrlToUse.isEmpty) {
+        _updateStatus("Custom repository URL is not set.");
+        return;
+      }
+
+      if (_activeTab == 'Weekly') {
         for (final ext in supportedImageExtensions) {
           final fileNameForDefaultRepo = '${day}_$resolution$ext';
           final localFile = await _cacheService.getLocalFile(
@@ -134,7 +178,7 @@ class AppState extends ChangeNotifier {
 
           _updateStatus("Downloading wallpaper for $day ($resolution)$ext...");
           downloadResult = await _githubService.downloadWallpaper(
-            _repoUrl,
+            repoUrlToUse,
             day,
             resolution,
             ext,
@@ -154,12 +198,12 @@ class AppState extends ChangeNotifier {
           }
         }
       } else {
-        _updateStatus("Downloading random wallpaper from custom repository...");
+        _updateStatus("Downloading wallpaper from $_activeTab repository...");
         downloadResult = await _githubService.downloadWallpaper(
-          _repoUrl,
-          '', // Day is not relevant for custom repos
-          '', // Resolution is not relevant for custom repos
-          '', // Extension is not relevant for custom repos
+          repoUrlToUse,
+          day,
+          resolution,
+          '', // Extension is not needed for other tabs
         );
 
         if (downloadResult.response.statusCode == 200) {
@@ -170,7 +214,7 @@ class AppState extends ChangeNotifier {
           );
         } else {
           throw Exception(
-            "Failed to download wallpaper from custom repository. Status code: ${downloadResult.response.statusCode}",
+            "Failed to download wallpaper from $_activeTab repository. Status code: ${downloadResult.response.statusCode}",
           );
         }
       }

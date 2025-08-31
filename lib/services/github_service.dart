@@ -12,7 +12,12 @@ class WallpaperDownloadResult {
 
 class GitHubService {
   /// Transforms a standard GitHub repo URL to a raw content URL for a specific file.
-  String getRawContentUrl(String repoUrl, String day, String fileName) {
+  String getRawContentUrl(
+    String repoUrl,
+    String day,
+    String resolution,
+    String fileName,
+  ) {
     // A more robust way to parse various GitHub URL formats
     final uri = Uri.parse(repoUrl);
     final pathSegments = uri.pathSegments.where((s) => s.isNotEmpty).toList();
@@ -30,6 +35,8 @@ class GitHubService {
     String basePath = 'https://raw.githubusercontent.com/$user/$repo/main';
     if (repoUrl == defaultRepoUrl) {
       return '$basePath/Weekly/$day/$fileName';
+    } else if (repoUrl.contains('Multi')) {
+      return '$basePath/Multi/$resolution/$fileName';
     } else {
       return '$basePath/$fileName';
     }
@@ -63,7 +70,7 @@ class GitHubService {
         );
       }
     } catch (e) {
-      throw Exception('Failed to connect or fetch repository contents: $e');
+      throw Exception('$e');
     }
   }
 
@@ -77,9 +84,28 @@ class GitHubService {
   }) async {
     String fileName;
     String effectiveDay = day;
+    String effectiveResolution = resolution;
 
     if (repoUrl == defaultRepoUrl) {
       fileName = '${day}_$resolution$extension';
+    } else if (repoUrl.contains('Multi')) {
+      final allFiles = await _fetchRepositoryContents(
+        '$repoUrl/tree/main/Multi/$resolution',
+      );
+      final imageFiles =
+          allFiles.where((file) {
+            return supportedImageExtensions.any(
+              (ext) => file.toLowerCase().endsWith(ext),
+            );
+          }).toList();
+
+      if (imageFiles.isEmpty) {
+        throw Exception('No supported image files found in the repository.');
+      }
+
+      final randomIndex = Random().nextInt(imageFiles.length);
+      fileName = imageFiles[randomIndex];
+      effectiveDay = '';
     } else {
       final allFiles = await _fetchRepositoryContents(repoUrl);
       final imageFiles =
@@ -96,9 +122,15 @@ class GitHubService {
       final randomIndex = Random().nextInt(imageFiles.length);
       fileName = imageFiles[randomIndex];
       effectiveDay = '';
+      effectiveResolution = '';
     }
 
-    final url = getRawContentUrl(repoUrl, effectiveDay, fileName);
+    final url = getRawContentUrl(
+      repoUrl,
+      effectiveDay,
+      effectiveResolution,
+      fileName,
+    );
 
     try {
       final response = await http.get(Uri.parse(url));

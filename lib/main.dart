@@ -12,7 +12,7 @@ void main() async {
   // Configure the window manager for a custom look.
   await windowManager.ensureInitialized();
   WindowOptions windowOptions = const WindowOptions(
-    size: Size(800, 650),
+    size: Size(650, 535),
     center: true,
     backgroundColor: Colors.transparent,
     skipTaskbar: false,
@@ -23,6 +23,8 @@ void main() async {
   windowManager.waitUntilReadyToShow(windowOptions, () async {
     await windowManager.show();
     await windowManager.focus();
+    await windowManager.setMinimumSize(const Size(650, 535));
+    await windowManager.setMaximumSize(const Size(650, 535));
   });
 
   runApp(const MyApp());

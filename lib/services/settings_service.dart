@@ -3,6 +3,8 @@ import '../constants.dart';
 
 class SettingsService {
   static const _repoUrlKey = 'github_repo_url';
+  static const _customRepoUrlKey = 'custom_github_repo_url';
+  static const _activeTabKey = 'active_tab';
   static const _autostartKey = 'autostart_enabled';
   static const _resolutionKey = 'resolution';
   static const _wallpaperIntervalKey = 'wallpaper_interval_minutes';
@@ -25,6 +27,26 @@ class SettingsService {
   Future<String> getRepoUrl() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getString(_repoUrlKey) ?? defaultRepoUrl;
+  }
+
+  Future<void> saveCustomRepoUrl(String url) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_customRepoUrlKey, url);
+  }
+
+  Future<String> getCustomRepoUrl() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_customRepoUrlKey) ?? '';
+  }
+
+  Future<void> saveActiveTab(String tab) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_activeTabKey, tab);
+  }
+
+  Future<String> getActiveTab() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_activeTabKey) ?? 'Weekly';
   }
 
   Future<void> setAutostart(bool isEnabled) async {
