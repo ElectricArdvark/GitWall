@@ -29,11 +29,9 @@ dependencies:
   # Date formatting
   intl: ^0.20.2 
 
-  # System Tray
-  system_tray: ^2.0.3
 
-  # Window Management
-  window_manager: ^0.5.1 
+
+
 
   # Windows API interaction
   win32: ^5.14.0
@@ -47,6 +45,7 @@ dependencies:
   url_launcher: ^6.2.6
   launch_at_startup: ^0.5.1
   package_info_plus: ^8.3.1
+  bitsdojo_window: ^0.1.6
 
 dev_dependencies:
   flutter_test:
