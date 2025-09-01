@@ -43,11 +43,14 @@ class _HomePageState extends State<HomePage> with WindowListener {
     final menu = Menu();
     await menu.buildFrom([
       MenuItemLabel(
-          label: 'Open GitWall', onClicked: (_) => windowManager.show()),
+        label: 'Open GitWall',
+        onClicked: (_) => windowManager.show(),
+      ),
       MenuItemLabel(
-          label: 'Force Refresh',
-          onClicked: (_) =>
-              context.read<AppState>().updateWallpaper(isManual: true)),
+        label: 'Force Refresh',
+        onClicked:
+            (_) => context.read<AppState>().updateWallpaper(isManual: true),
+      ),
       MenuSeparator(),
       MenuItemLabel(label: 'Exit', onClicked: (_) => windowManager.destroy()),
     ]);
@@ -67,13 +70,13 @@ class _HomePageState extends State<HomePage> with WindowListener {
       builder: (context, appState, child) {
         return NavigationView(
           appBar: const NavigationAppBar(
-            title: Text("GitWall"),
             automaticallyImplyLeading: false,
+            height: 0,
           ),
           pane: NavigationPane(
             selected: _navigationIndex,
             onChanged: (index) => setState(() => _navigationIndex = index),
-            displayMode: PaneDisplayMode.top,
+            displayMode: PaneDisplayMode.compact,
             items: [
               PaneItem(
                 icon: const Icon(FluentIcons.home),
@@ -96,7 +99,7 @@ class _HomePageState extends State<HomePage> with WindowListener {
     return ScaffoldPage(
       header: const PageHeader(title: Text('Status')),
       content: Padding(
-        padding: const EdgeInsets.all(16.0),
+        padding: const EdgeInsets.all(8.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -106,8 +109,10 @@ class _HomePageState extends State<HomePage> with WindowListener {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('Last Status Update',
-                        style: TextStyle(fontWeight: FontWeight.bold)),
+                    const Text(
+                      'Last Status Update',
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
                     const SizedBox(height: 8),
                     Text(appState.status),
                   ],
@@ -120,8 +125,10 @@ class _HomePageState extends State<HomePage> with WindowListener {
               child: const Text('Force Refresh Now'),
             ),
             const SizedBox(height: 20),
-            const Text('Current Wallpaper Preview:',
-                style: TextStyle(fontWeight: FontWeight.bold)),
+            const Text(
+              'Current Wallpaper Preview:',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
             const SizedBox(height: 10),
             Expanded(
               child: Container(
@@ -130,17 +137,18 @@ class _HomePageState extends State<HomePage> with WindowListener {
                   border: Border.all(color: Colors.grey[100]),
                   borderRadius: BorderRadius.circular(4.0),
                 ),
-                child: appState.currentWallpaperFile != null &&
-                        appState.currentWallpaperFile!.existsSync()
-                    ? Image.file(
-                        appState.currentWallpaperFile!,
-                        fit: BoxFit.cover,
-                        // Add a key to force rebuild when the file changes
-                        key: ValueKey(appState.currentWallpaperFile!.path),
-                      )
-                    : const Center(
-                        child: Text('No wallpaper preview available.'),
-                      ),
+                child:
+                    appState.currentWallpaperFile != null &&
+                            appState.currentWallpaperFile!.existsSync()
+                        ? Image.file(
+                          appState.currentWallpaperFile!,
+                          fit: BoxFit.cover,
+                          // Add a key to force rebuild when the file changes
+                          key: ValueKey(appState.currentWallpaperFile!.path),
+                        )
+                        : const Center(
+                          child: Text('No wallpaper preview available.'),
+                        ),
               ),
             ),
           ],

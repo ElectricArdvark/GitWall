@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:io';
 import 'package:fluent_ui/fluent_ui.dart';
-import 'package:http/http.dart' as http;
 import 'package:gitwall/services/settings_service.dart';
 import 'package:gitwall/services/startup_service.dart';
 import 'package:intl/intl.dart';
@@ -35,6 +34,9 @@ class AppState extends ChangeNotifier {
   String _currentResolution = '1920x1080'; // Default value
   String get currentResolution => _currentResolution;
 
+  int _wallpaperIntervalMinutes = 60; // Default to 60 minutes
+  int get wallpaperIntervalMinutes => _wallpaperIntervalMinutes;
+
   Timer? _timer;
 
   AppState() {
@@ -45,6 +47,7 @@ class AppState extends ChangeNotifier {
     _repoUrl = await _settingsService.getRepoUrl();
     _autostartEnabled = await _settingsService.isAutostartEnabled();
     _currentResolution = await _settingsService.getResolution();
+    _wallpaperIntervalMinutes = await _settingsService.getWallpaperInterval();
     updateAutostart();
     await updateWallpaper(isManual: false);
     _startScheduler();
@@ -55,8 +58,12 @@ class AppState extends ChangeNotifier {
     // Cancel any existing timer
     _timer?.cancel();
     // Check every hour
-    _timer = Timer.periodic(const Duration(hours: 1), (timer) {
-      print("Scheduler check running...");
+    _timer = Timer.periodic(Duration(minutes: _wallpaperIntervalMinutes), (
+      Timer timer,
+    ) {
+      // print(
+      //   "Scheduler check running (interval: $_wallpaperIntervalMinutes minutes)...",
+      // );
       updateWallpaper(isManual: false);
     });
   }
@@ -73,6 +80,13 @@ class AppState extends ChangeNotifier {
     _autostartEnabled = enabled;
     await _settingsService.setAutostart(enabled);
     updateAutostart();
+    notifyListeners();
+  }
+
+  Future<void> updateWallpaperInterval(int minutes) async {
+    _wallpaperIntervalMinutes = minutes;
+    await _settingsService.saveWallpaperInterval(minutes);
+    _startScheduler(); // Restart scheduler with new interval
     notifyListeners();
   }
 
@@ -99,55 +113,76 @@ class AppState extends ChangeNotifier {
       final resolution = await _settingsService.getResolution();
 
       File? savedFile;
-      http.Response? response;
-      String? foundExtension;
+      late WallpaperDownloadResult
+      downloadResult; // Changed to late and non-nullable
+      String? downloadedFileName;
 
-      for (final ext in supportedImageExtensions) {
-        final fileNameWithExt = '$day$resolution$ext';
-        final localFile = await _cacheService.getLocalFile(fileNameWithExt);
-
-        if (!isManual && await localFile.exists()) {
-          _updateStatus(
-            "Today's wallpaper is already set. Next check scheduled.",
-            file: localFile,
+      if (_repoUrl == defaultRepoUrl) {
+        for (final ext in supportedImageExtensions) {
+          final fileNameForDefaultRepo = '${day}_$resolution$ext';
+          final localFile = await _cacheService.getLocalFile(
+            fileNameForDefaultRepo,
           );
-          return;
-        }
 
-        _updateStatus("Downloading wallpaper for $day ($resolution)$ext...");
-        response = await _githubService.downloadWallpaper(
+          if (!isManual && await localFile.exists()) {
+            _updateStatus(
+              "Today's wallpaper is already set. Next check scheduled.",
+              file: localFile,
+            );
+            return;
+          }
+
+          _updateStatus("Downloading wallpaper for $day ($resolution)$ext...");
+          downloadResult = await _githubService.downloadWallpaper(
+            _repoUrl,
+            day,
+            resolution,
+            ext,
+          );
+
+          if (downloadResult.response.statusCode == 200) {
+            savedFile = await _cacheService.saveFile(
+              fileNameForDefaultRepo,
+              downloadResult.response.bodyBytes,
+            );
+            downloadedFileName = downloadResult.fileName;
+            break;
+          } else if (downloadResult.response.statusCode != 404) {
+            throw Exception(
+              "Failed to download wallpaper. Status code: ${downloadResult.response.statusCode}",
+            );
+          }
+        }
+      } else {
+        _updateStatus("Downloading random wallpaper from custom repository...");
+        downloadResult = await _githubService.downloadWallpaper(
           _repoUrl,
-          day,
-          resolution,
-          ext, // Pass the extension
+          '', // Day is not relevant for custom repos
+          '', // Resolution is not relevant for custom repos
+          '', // Extension is not relevant for custom repos
         );
 
-        if (response.statusCode == 200) {
+        if (downloadResult.response.statusCode == 200) {
+          downloadedFileName = downloadResult.fileName;
           savedFile = await _cacheService.saveFile(
-            fileNameWithExt,
-            response.bodyBytes,
+            downloadedFileName,
+            downloadResult.response.bodyBytes,
           );
-          foundExtension = ext;
-          break; // Found and downloaded, exit loop
-        } else if (response.statusCode != 404) {
-          // If it's not a 404, it's a general error, throw it
+        } else {
           throw Exception(
-            "Failed to download wallpaper. Status code: ${response.statusCode}",
+            "Failed to download wallpaper from custom repository. Status code: ${downloadResult.response.statusCode}",
           );
         }
-        // If 404, continue to next extension
       }
 
-      if (savedFile != null && foundExtension != null) {
+      if (savedFile != null && downloadedFileName != null) {
         _wallpaperService.setWallpaper(savedFile.path);
         _updateStatus(
-          "Success! Wallpaper updated for $day ($resolution)$foundExtension.",
+          "Success! Wallpaper updated: $downloadedFileName.",
           file: savedFile,
         );
       } else {
-        throw Exception(
-          "Wallpaper for $day$resolution not found in the repository with any supported extension.",
-        );
+        throw Exception("Wallpaper not found or could not be downloaded.");
       }
     } catch (e) {
       _updateStatus("Error: ${e.toString()}");
@@ -160,7 +195,7 @@ class AppState extends ChangeNotifier {
     if (file != null) {
       _currentWallpaperFile = file;
     }
-    print(_status); // For debugging
+    // print(_status); // For debugging
     notifyListeners();
   }
 

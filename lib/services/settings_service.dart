@@ -5,6 +5,7 @@ class SettingsService {
   static const _repoUrlKey = 'github_repo_url';
   static const _autostartKey = 'autostart_enabled';
   static const _resolutionKey = 'resolution';
+  static const _wallpaperIntervalKey = 'wallpaper_interval_minutes';
 
   Future<void> saveResolution(String resolution) async {
     final prefs = await SharedPreferences.getInstance();
@@ -34,5 +35,16 @@ class SettingsService {
   Future<bool> isAutostartEnabled() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getBool(_autostartKey) ?? true; // Default to true
+  }
+
+  Future<void> saveWallpaperInterval(int minutes) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt(_wallpaperIntervalKey, minutes);
+  }
+
+  Future<int> getWallpaperInterval() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getInt(_wallpaperIntervalKey) ??
+        60; // Default to 60 minutes (1 hour)
   }
 }
