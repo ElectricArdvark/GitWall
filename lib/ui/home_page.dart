@@ -20,6 +20,11 @@ class _HomePageState extends State<HomePage> {
   void initState() {
     super.initState();
     _pageController = PageController();
+    _pageController.addListener(() {
+      setState(() {
+        _navigationIndex = _pageController.page!.round();
+      });
+    });
   }
 
   @override
@@ -34,74 +39,16 @@ class _HomePageState extends State<HomePage> {
       builder: (context, appState, child) {
         return Row(
           children: [
-            NavigationRail(
-              selectedIndex: _navigationIndex,
-              onDestinationSelected: (int index) {
-                setState(() => _navigationIndex = index);
-                _pageController.jumpToPage(index);
-              },
-              extended: true,
-              minExtendedWidth: 250,
-              leading: Column(
-                children: [
-                  Transform.translate(
-                    offset: const Offset(0, -8),
-                    child: SizedBox(
-                      height: 30,
-                      width: 250,
-                      child: WindowTitleBarBox(child: MoveWindow()),
-                    ),
-                  ),
-                  const Center(
-                    child: Text(
-                      'GitWall',
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              destinations: const [
-                NavigationRailDestination(
-                  icon: Icon(FluentIcons.home),
-                  selectedIcon: Icon(FluentIcons.home),
-                  label: Text('Home'),
-                ),
-                NavigationRailDestination(
-                  icon: Icon(FluentIcons.settings),
-                  selectedIcon: Icon(FluentIcons.settings),
-                  label: Text('Settings'),
-                ),
-              ],
-              trailing: Padding(
-                padding: const EdgeInsets.all(8.0),
-                child: DropDownButton(
-                  title: Text(appState.activeTab),
-                  items: [
-                    MenuFlyoutItem(
-                      text: const Text('Weekly'),
-                      onPressed: () => appState.setActiveTab('Weekly'),
-                    ),
-                    MenuFlyoutItem(
-                      text: const Text('Multi'),
-                      onPressed: () => appState.setActiveTab('Multi'),
-                    ),
-                    MenuFlyoutItem(
-                      text: const Text('Custom'),
-                      onPressed: () => appState.setActiveTab('Custom'),
-                    ),
-                  ],
-                ),
-              ),
+            LeftSideZone(
+              navigationIndex: _navigationIndex,
+              onNavigationChanged: (index) => _pageController.jumpToPage(index),
+              appState: appState,
             ),
             Expanded(
               child: PageView(
+                scrollDirection: Axis.vertical,
                 controller: _pageController,
                 physics: const NeverScrollableScrollPhysics(),
-                onPageChanged:
-                    (index) => setState(() => _navigationIndex = index),
                 children: [
                   _buildHomePageContent(appState),
                   const SettingsPage(),
@@ -116,6 +63,116 @@ class _HomePageState extends State<HomePage> {
 
   Widget _buildHomePageContent(AppState appState) {
     return RightSideZone(appState: appState);
+  }
+}
+
+const borderColor = Color(0xFF805306);
+var leftsidebarColor = const Color(0XFFF6A00C);
+
+class LeftSideZone extends StatelessWidget {
+  final int navigationIndex;
+  final Function(int) onNavigationChanged;
+  final AppState appState;
+
+  const LeftSideZone({
+    super.key,
+    required this.navigationIndex,
+    required this.onNavigationChanged,
+    required this.appState,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 252,
+      child: Container(
+        color: leftsidebarColor,
+        child: Column(
+          children: [
+            WindowTitleBarBox(child: MoveWindow()),
+            const Center(
+              child: Text(
+                'GitWall',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              ),
+            ),
+            // Home button
+            Padding(
+              padding: const EdgeInsets.all(8.0),
+              child:
+                  navigationIndex == 0
+                      ? FilledButton(
+                        onPressed: () {},
+                        child: const Row(
+                          children: [
+                            Icon(FluentIcons.home),
+                            SizedBox(width: 8),
+                            Text('Home'),
+                          ],
+                        ),
+                      )
+                      : Button(
+                        onPressed: () => onNavigationChanged(0),
+                        child: const Row(
+                          children: [
+                            Icon(FluentIcons.home),
+                            SizedBox(width: 8),
+                            Text('Home'),
+                          ],
+                        ),
+                      ),
+            ),
+            // Settings button
+            Padding(
+              padding: const EdgeInsets.all(8.0),
+              child:
+                  navigationIndex == 1
+                      ? FilledButton(
+                        onPressed: () {},
+                        child: const Row(
+                          children: [
+                            Icon(FluentIcons.settings),
+                            SizedBox(width: 8),
+                            Text('Settings'),
+                          ],
+                        ),
+                      )
+                      : Button(
+                        onPressed: () => onNavigationChanged(1),
+                        child: const Row(
+                          children: [
+                            Icon(FluentIcons.settings),
+                            SizedBox(width: 8),
+                            Text('Settings'),
+                          ],
+                        ),
+                      ),
+            ),
+            // Footer dropdown
+            Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: DropDownButton(
+                title: Text(appState.activeTab),
+                items: [
+                  MenuFlyoutItem(
+                    text: const Text('Weekly'),
+                    onPressed: () => appState.setActiveTab('Weekly'),
+                  ),
+                  MenuFlyoutItem(
+                    text: const Text('Multi'),
+                    onPressed: () => appState.setActiveTab('Multi'),
+                  ),
+                  MenuFlyoutItem(
+                    text: const Text('Custom'),
+                    onPressed: () => appState.setActiveTab('Custom'),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 
