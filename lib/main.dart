@@ -8,7 +8,7 @@ import 'ui/home_page.dart';
 void main() async {
   runApp(const MyApp());
   doWhenWindowReady(() {
-    const initialSize = Size(800, 445);
+    const initialSize = Size(850, 445);
     appWindow.minSize = initialSize; //Size(800, 440);
     appWindow.size = initialSize;
     appWindow.alignment = Alignment.center;

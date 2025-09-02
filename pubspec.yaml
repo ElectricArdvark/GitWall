@@ -46,6 +46,7 @@ dependencies:
   launch_at_startup: ^0.5.1
   package_info_plus: ^8.3.1
   bitsdojo_window: ^0.1.6
+  flutter_acrylic: ^1.1.4
 
 dev_dependencies:
   flutter_test:
