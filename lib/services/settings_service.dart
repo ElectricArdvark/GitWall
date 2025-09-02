@@ -8,6 +8,7 @@ class SettingsService {
   static const _autostartKey = 'autostart_enabled';
   static const _resolutionKey = 'resolution';
   static const _wallpaperIntervalKey = 'wallpaper_interval_minutes';
+  static const _welcomeShownKey = 'welcome_shown';
 
   Future<void> saveResolution(String resolution) async {
     final prefs = await SharedPreferences.getInstance();
@@ -68,5 +69,16 @@ class SettingsService {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getInt(_wallpaperIntervalKey) ??
         60; // Default to 60 minutes (1 hour)
+  }
+
+  Future<void> saveWelcomeShown(bool shown) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_welcomeShownKey, shown);
+  }
+
+  Future<bool> isWelcomeShown() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_welcomeShownKey) ??
+        false; // Default to false (not shown)
   }
 }

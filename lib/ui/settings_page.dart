@@ -3,6 +3,8 @@ import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../state/app_state.dart';
 
+// Settings page widget for managing GitWall application configuration
+// Allows users to set wallpaper resolution, change interval, autostart, and custom repo URL
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
 
@@ -11,13 +13,16 @@ class SettingsPage extends StatefulWidget {
 }
 
 class _SettingsPageState extends State<SettingsPage> {
+  // Local state variables for managing form selections
   String? _selectedResolution;
   int? _selectedIntervalMinutes;
+  // Controller for custom repository URL text input
   late TextEditingController _customUrlController;
 
   @override
   void initState() {
     super.initState();
+    // Initialize local state with current app state values
     final appState = Provider.of<AppState>(context, listen: false);
     _selectedResolution = appState.currentResolution;
     _selectedIntervalMinutes = appState.wallpaperIntervalMinutes;
@@ -26,6 +31,7 @@ class _SettingsPageState extends State<SettingsPage> {
 
   @override
   void dispose() {
+    // Clean up text controller resources
     _customUrlController.dispose();
     super.dispose();
   }

@@ -43,6 +43,10 @@ class AppState extends ChangeNotifier {
   int _wallpaperIntervalMinutes = 60; // Default to 60 minutes
   int get wallpaperIntervalMinutes => _wallpaperIntervalMinutes;
 
+  bool _showWelcomeInRightSide =
+      true; // Always show welcome initially in right side
+  bool get showWelcomeInRightSide => _showWelcomeInRightSide;
+
   Timer? _timer;
 
   AppState() {
@@ -56,6 +60,7 @@ class AppState extends ChangeNotifier {
     _autostartEnabled = await _settingsService.isAutostartEnabled();
     _currentResolution = await _settingsService.getResolution();
     _wallpaperIntervalMinutes = await _settingsService.getWallpaperInterval();
+    // No need to load welcome state from persistence anymore
     updateAutostart();
     await updateWallpaper(isManual: false);
     _startScheduler();
@@ -111,6 +116,11 @@ class AppState extends ChangeNotifier {
     _wallpaperIntervalMinutes = minutes;
     await _settingsService.saveWallpaperInterval(minutes);
     _startScheduler(); // Restart scheduler with new interval
+    notifyListeners();
+  }
+
+  void hideWelcomeInRightSide() {
+    _showWelcomeInRightSide = false;
     notifyListeners();
   }
 
