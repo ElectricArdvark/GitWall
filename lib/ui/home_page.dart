@@ -382,8 +382,9 @@ class _RightSideZoneState extends State<RightSideZone> {
             ),
             child: Row(
               children: [
-                // Display current app status
-                Text('Status: ${widget.appState.status}'),
+                // Display current app status (conditionally hidden)
+                if (!widget.appState.hideStatus)
+                  Text('Status: ${widget.appState.status}'),
                 const Spacer(),
                 // Manual refresh button for forcing wallpaper update
                 FilledButton(

@@ -73,7 +73,7 @@ class _WelcomePageState extends State<WelcomePage> {
                     const SizedBox(height: 40),
 
                     // Description
-                    SizedBox(
+                    const SizedBox(
                       width: 400,
                       child: Text(
                         'Your modern desktop wallpaper changer.\nEasily set and manage wallpapers from various GitHub repositories.',

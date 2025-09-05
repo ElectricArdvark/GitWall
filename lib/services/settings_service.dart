@@ -9,6 +9,8 @@ class SettingsService {
   static const _resolutionKey = 'resolution';
   static const _wallpaperIntervalKey = 'wallpaper_interval_minutes';
   static const _welcomeShownKey = 'welcome_shown';
+  static const _hideStatusKey = 'hide_status';
+  static const _customWallpaperLocationKey = 'custom_wallpaper_location';
 
   Future<void> saveResolution(String resolution) async {
     final prefs = await SharedPreferences.getInstance();
@@ -80,5 +82,26 @@ class SettingsService {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getBool(_welcomeShownKey) ??
         false; // Default to false (not shown)
+  }
+
+  Future<void> setHideStatus(bool hide) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_hideStatusKey, hide);
+  }
+
+  Future<bool> getHideStatus() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_hideStatusKey) ??
+        false; // Default to false (show status)
+  }
+
+  Future<void> saveCustomWallpaperLocation(String location) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_customWallpaperLocationKey, location);
+  }
+
+  Future<String?> getCustomWallpaperLocation() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_customWallpaperLocationKey);
   }
 }
