@@ -18,14 +18,7 @@ class _WelcomePageState extends State<WelcomePage> {
     return Consumer<AppState>(
       builder: (context, appState, child) {
         return Container(
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [Color(0xFFFFD500), Color(0xFFF6A00C)],
-              stops: [0.0, 1.0],
-            ),
-          ),
+          color: const Color(0xFF1F2A29),
           child: Stack(
             children: [
               Positioned(
@@ -56,7 +49,7 @@ class _WelcomePageState extends State<WelcomePage> {
                       style: TextStyle(
                         fontSize: 42,
                         fontWeight: FontWeight.bold,
-                        color: Colors.black,
+                        color: Colors.white,
                       ),
                     ),
                     const SizedBox(height: 15),
@@ -66,7 +59,7 @@ class _WelcomePageState extends State<WelcomePage> {
                       'Welcome to GitWall',
                       style: TextStyle(
                         fontSize: 20,
-                        color: Colors.black,
+                        color: Colors.white,
                         fontWeight: FontWeight.w300,
                       ),
                     ),
@@ -80,7 +73,7 @@ class _WelcomePageState extends State<WelcomePage> {
                         textAlign: TextAlign.center,
                         style: TextStyle(
                           fontSize: 16,
-                          color: Colors.black87,
+                          color: Colors.white70,
                           height: 1.5,
                         ),
                       ),

@@ -106,8 +106,8 @@ class _HomePageState extends State<HomePage> {
   }
 }
 
-const borderColor = Color(0xFF805306);
-var leftsidebarColor = const Color(0XFFF6A00C);
+const borderColor = Color(0xFF1F2A29);
+var leftsidebarColor = const Color(0xFF1F2A29);
 
 class LeftSideZone extends StatelessWidget {
   final int navigationIndex;
@@ -128,152 +128,87 @@ class LeftSideZone extends StatelessWidget {
       child: Container(
         color: leftsidebarColor,
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Draggable window title bar area
-            WindowTitleBarBox(child: MoveWindow()),
+            WindowTitleBarBox(child: SizedBox(height: 48, child: MoveWindow())),
             // App title in the sidebar
-            const Center(
+            const Padding(
+              padding: EdgeInsets.only(left: 75.0, top: 16.0, bottom: 32.0),
               child: Text(
                 'GitWall',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                style: TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFFFFFFFF),
+                ),
               ),
             ),
-            // Home button
-            Padding(
-              padding: const EdgeInsets.all(8.0),
-              child:
-                  appState.showWelcomeInRightSide && navigationIndex == 0
-                      ? FilledButton(
-                        onPressed:
-                            () => appState.setShowWelcomeInRightSide(true),
-                        child: const Row(
-                          children: [
-                            Icon(FluentIcons.home),
-                            SizedBox(width: 8),
-                            Text('Home'),
-                          ],
-                        ),
-                      )
-                      : Button(
-                        onPressed: () {
-                          appState.setShowWelcomeInRightSide(true);
-                          onNavigationChanged(0);
-                        },
-                        child: const Row(
-                          children: [
-                            Icon(FluentIcons.home),
-                            SizedBox(width: 8),
-                            Text('Home'),
-                          ],
-                        ),
-                      ),
-            ),
-            // Settings button
-            Padding(
-              padding: const EdgeInsets.all(8.0),
-              child:
-                  navigationIndex == 1
-                      ? FilledButton(
-                        onPressed: () => appState.hideWelcomeInRightSide(),
-                        child: const Row(
-                          children: [
-                            Icon(FluentIcons.settings),
-                            SizedBox(width: 8),
-                            Text('Settings'),
-                          ],
-                        ),
-                      )
-                      : Button(
-                        onPressed: () {
-                          appState.hideWelcomeInRightSide();
-                          onNavigationChanged(1);
-                        },
-                        child: const Row(
-                          children: [
-                            Icon(FluentIcons.settings),
-                            SizedBox(width: 8),
-                            Text('Settings'),
-                          ],
-                        ),
-                      ),
-            ),
-            // Tab selection buttons
-            Padding(
-              padding: const EdgeInsets.only(
-                top: 16.0,
-                left: 16.0,
-                right: 16.0,
-                bottom: 0.0,
-              ),
-              child: Column(
-                children: [
-                  // Weekly button
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 8.0),
-                    child:
-                        appState.activeTab == 'Weekly'
-                            ? FilledButton(
-                              onPressed: () {
-                                appState.hideWelcomeInRightSide();
-                                appState.setActiveTab('Weekly');
-                                onNavigationChanged(0);
-                              },
-                              child: const Text('Weekly'),
-                            )
-                            : Button(
-                              onPressed: () {
-                                appState.hideWelcomeInRightSide();
-                                appState.setActiveTab('Weekly');
-                                onNavigationChanged(0);
-                              },
-                              child: const Text('Weekly'),
-                            ),
-                  ),
-                  // Multi button
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 8.0),
-                    child:
-                        appState.activeTab == 'Multi'
-                            ? FilledButton(
-                              onPressed: () {
-                                appState.hideWelcomeInRightSide();
-                                appState.setActiveTab('Multi');
-                                onNavigationChanged(0);
-                              },
-                              child: const Text('Multi'),
-                            )
-                            : Button(
-                              onPressed: () {
-                                appState.hideWelcomeInRightSide();
-                                appState.setActiveTab('Multi');
-                                onNavigationChanged(0);
-                              },
-                              child: const Text('Multi'),
-                            ),
-                  ),
-                  // Custom button
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 16.0),
-                    child:
-                        appState.activeTab == 'Custom'
-                            ? FilledButton(
-                              onPressed: () {
-                                appState.hideWelcomeInRightSide();
-                                appState.setActiveTab('Custom');
-                                onNavigationChanged(0);
-                              },
-                              child: const Text('Custom'),
-                            )
-                            : Button(
-                              onPressed: () {
-                                appState.hideWelcomeInRightSide();
-                                appState.setActiveTab('Custom');
-                                onNavigationChanged(0);
-                              },
-                              child: const Text('Custom'),
-                            ),
-                  ),
-                ],
+            // Navigation items
+            Expanded(
+              child: SingleChildScrollView(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _NavigationItem(
+                      icon: FluentIcons.home,
+                      text: 'Home',
+                      isSelected:
+                          appState.showWelcomeInRightSide &&
+                          navigationIndex == 0,
+                      onTap: () {
+                        appState.setShowWelcomeInRightSide(true);
+                        onNavigationChanged(0);
+                      },
+                    ),
+                    _NavigationItem(
+                      icon: FluentIcons.settings,
+                      text: 'Settings',
+                      isSelected: navigationIndex == 1,
+                      onTap: () {
+                        appState.hideWelcomeInRightSide();
+                        onNavigationChanged(1);
+                      },
+                    ),
+                    const SizedBox(height: 24),
+                    // Tab selection buttons
+                    _NavigationItem(
+                      icon: FluentIcons.calendar_week,
+                      text: 'Weekly',
+                      isSelected:
+                          appState.activeTab == 'Weekly' &&
+                          navigationIndex == 0,
+                      onTap: () {
+                        appState.hideWelcomeInRightSide();
+                        appState.setActiveTab('Weekly');
+                        onNavigationChanged(0);
+                      },
+                    ),
+                    _NavigationItem(
+                      icon: FluentIcons.slideshow,
+                      text: 'Multi',
+                      isSelected:
+                          appState.activeTab == 'Multi' && navigationIndex == 0,
+                      onTap: () {
+                        appState.hideWelcomeInRightSide();
+                        appState.setActiveTab('Multi');
+                        onNavigationChanged(0);
+                      },
+                    ),
+                    _NavigationItem(
+                      icon: FluentIcons.edit_create,
+                      text: 'Custom',
+                      isSelected:
+                          appState.activeTab == 'Custom' &&
+                          navigationIndex == 0,
+                      onTap: () {
+                        appState.hideWelcomeInRightSide();
+                        appState.setActiveTab('Custom');
+                        onNavigationChanged(0);
+                      },
+                    ),
+                  ],
+                ),
               ),
             ),
           ],
@@ -283,18 +218,57 @@ class LeftSideZone extends StatelessWidget {
   }
 }
 
+class _NavigationItem extends StatelessWidget {
+  final IconData icon;
+  final String text;
+  final bool isSelected;
+  final VoidCallback onTap;
+
+  const _NavigationItem({
+    required this.icon,
+    required this.text,
+    required this.isSelected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        margin: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 4.0),
+        padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+        decoration: BoxDecoration(
+          color: isSelected ? const Color(0xFF2D3A3A) : null,
+          borderRadius: BorderRadius.circular(8.0),
+        ),
+        child: Row(
+          children: [
+            Icon(icon, color: const Color(0xFFFFFFFF), size: 20),
+            const SizedBox(width: 16),
+            Text(
+              text,
+              style: const TextStyle(fontSize: 16, color: Color(0xFFFFFFFF)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 var buttonColors = WindowButtonColors(
-  iconNormal: const Color(0xFF805306),
-  mouseOver: const Color(0xFFF6A00C),
-  mouseDown: const Color(0xFF805306),
-  iconMouseOver: const Color(0xFF805306),
-  iconMouseDown: const Color(0xFFFFD500),
+  iconNormal: const Color(0xFFFFFFFF),
+  mouseOver: const Color(0xFF2D3A3A),
+  mouseDown: const Color(0xFF1F2A29),
+  iconMouseOver: const Color(0xFFFFFFFF),
+  iconMouseDown: const Color(0xFFFFFFFF),
 );
 
 var closeButtonColors = WindowButtonColors(
   mouseOver: const Color(0xFFD32F2F),
   mouseDown: const Color(0xFFB71C1C),
-  iconNormal: const Color(0xFF805306),
+  iconNormal: const Color(0xFFFFFFFF),
   iconMouseOver: const Color(0xFFFFFFFF),
 );
 

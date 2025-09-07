@@ -14,6 +14,28 @@ class SettingsService {
   static const _useCachedWhenNoInternetKey = 'use_cached_when_no_internet';
   static const _githubTokenKey = 'github_token';
   static const _autoShuffleKey = 'auto_shuffle_enabled';
+  static const _closeToTrayKey = 'close_to_tray_enabled';
+  static const _startMinimizedKey = 'start_minimized_enabled';
+
+  Future<void> setCloseToTray(bool isEnabled) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_closeToTrayKey, isEnabled);
+  }
+
+  Future<bool> isCloseToTrayEnabled() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_closeToTrayKey) ?? true; // Default to true
+  }
+
+  Future<void> setStartMinimized(bool isEnabled) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_startMinimizedKey, isEnabled);
+  }
+
+  Future<bool> isStartMinimizedEnabled() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_startMinimizedKey) ?? false; // Default to false
+  }
 
   Future<void> saveResolution(String resolution) async {
     final prefs = await SharedPreferences.getInstance();

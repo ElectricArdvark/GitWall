@@ -1,5 +1,6 @@
 import 'package:bitsdojo_window/bitsdojo_window.dart';
 import 'package:fluent_ui/fluent_ui.dart' hide Colors;
+import 'package:flutter/material.dart' show Colors;
 import 'package:gitwall/ui/home_page.dart';
 import '../state/app_state.dart';
 
@@ -53,17 +54,34 @@ class _MultiPageState extends State<MultiPage> {
 
   Widget _buildPreviewContent() {
     if (_imageUrlsFuture == null) {
-      return const Center(child: Text('Loading...'));
+      return const Center(
+        child: Text('Loading...', style: TextStyle(color: Colors.white)),
+      );
     }
     return FutureBuilder<List<String>>(
       future: _imageUrlsFuture!,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: Text('Loading images...'));
+          return const Center(
+            child: Text(
+              'Loading images...',
+              style: TextStyle(color: Colors.white),
+            ),
+          );
         } else if (snapshot.hasError) {
-          return Center(child: Text('Error: ${snapshot.error}'));
+          return Center(
+            child: Text(
+              'Error: ${snapshot.error}',
+              style: const TextStyle(color: Colors.white),
+            ),
+          );
         } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-          return const Center(child: Text('No images found.'));
+          return const Center(
+            child: Text(
+              'No images found.',
+              style: TextStyle(color: Colors.white),
+            ),
+          );
         } else {
           final urls = snapshot.data!;
           return GridView.builder(
@@ -84,10 +102,17 @@ class _MultiPageState extends State<MultiPage> {
                     fit: BoxFit.cover,
                     loadingBuilder: (context, child, loadingProgress) {
                       if (loadingProgress == null) return child;
-                      return const Center(child: Text('Loading...'));
+                      return const Center(
+                        child: Text(
+                          'Loading...',
+                          style: TextStyle(color: Colors.white),
+                        ),
+                      );
                     },
                     errorBuilder: (context, error, stackTrace) {
-                      return const Center(child: Icon(FluentIcons.error));
+                      return const Center(
+                        child: Icon(FluentIcons.error, color: Colors.white),
+                      );
                     },
                   ),
                 ),
@@ -102,14 +127,7 @@ class _MultiPageState extends State<MultiPage> {
   @override
   Widget build(BuildContext context) {
     return Container(
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [rightbackgroundStartColor, rightbackgroundEndColor],
-          stops: [0.0, 1.0],
-        ),
-      ),
+      color: const Color(0xFF1F2A29),
       child: Column(
         children: [
           WindowTitleBarBox(
@@ -129,6 +147,7 @@ class _MultiPageState extends State<MultiPage> {
                     child: Center(
                       child: Text(
                         'Uses a repository with multiple resolutions.',
+                        style: TextStyle(color: Colors.white),
                       ),
                     ),
                   ),
@@ -138,18 +157,20 @@ class _MultiPageState extends State<MultiPage> {
                   padding: EdgeInsets.only(left: 16.0, right: 16.0),
                   child: Text(
                     'Wallpaper Preview:',
-                    style: TextStyle(fontWeight: FontWeight.bold),
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
                   ),
                 ),
                 const SizedBox(height: 5),
-                Padding(
-                  padding: const EdgeInsets.only(left: 16.0, right: 16.0),
-                  child: SizedBox(
-                    height: 300,
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.only(left: 16.0, right: 16.0),
                     child: Container(
                       width: double.infinity,
                       decoration: BoxDecoration(
-                        border: Border.all(color: const Color(0xFFE0E0E0)),
+                        border: Border.all(color: const Color(0xFF2D3A3A)),
                         borderRadius: BorderRadius.circular(4.0),
                       ),
                       child: _buildPreviewContent(),
@@ -169,7 +190,10 @@ class _MultiPageState extends State<MultiPage> {
             child: Row(
               children: [
                 if (!widget.appState.hideStatus)
-                  Text('Status: ${widget.appState.status}'),
+                  Text(
+                    'Status: ${widget.appState.status}',
+                    style: const TextStyle(color: Colors.white),
+                  ),
                 const Spacer(),
                 FilledButton(
                   onPressed:

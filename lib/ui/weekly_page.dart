@@ -1,11 +1,8 @@
 import 'package:bitsdojo_window/bitsdojo_window.dart';
 import 'package:fluent_ui/fluent_ui.dart' hide Colors;
+import 'package:flutter/material.dart' show Colors;
 import 'package:gitwall/ui/home_page.dart';
 import '../state/app_state.dart';
-
-const rightbackgroundStartColor = Color(0xFFFFD500);
-const rightbackgroundEndColor = Color(0xFFF6A00C);
-const borderColor = Color(0xFF805306);
 
 class WeeklyPage extends StatefulWidget {
   final AppState appState;
@@ -19,14 +16,7 @@ class _WeeklyPageState extends State<WeeklyPage> {
   @override
   Widget build(BuildContext context) {
     return Container(
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [rightbackgroundStartColor, rightbackgroundEndColor],
-          stops: [0.0, 1.0],
-        ),
-      ),
+      color: const Color(0xFF1F2A29),
       child: Column(
         children: [
           WindowTitleBarBox(
@@ -46,6 +36,7 @@ class _WeeklyPageState extends State<WeeklyPage> {
                     child: Center(
                       child: Text(
                         'Uses the default repository for weekly wallpapers.',
+                        style: TextStyle(color: Colors.white),
                       ),
                     ),
                   ),
@@ -55,18 +46,20 @@ class _WeeklyPageState extends State<WeeklyPage> {
                   padding: EdgeInsets.only(left: 16.0, right: 16.0),
                   child: Text(
                     'Wallpaper Preview:',
-                    style: TextStyle(fontWeight: FontWeight.bold),
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
                   ),
                 ),
                 const SizedBox(height: 5),
-                Padding(
-                  padding: const EdgeInsets.only(left: 16.0, right: 16.0),
-                  child: SizedBox(
-                    height: 300,
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.only(left: 16.0, right: 16.0),
                     child: Container(
                       width: double.infinity,
                       decoration: BoxDecoration(
-                        border: Border.all(color: const Color(0xFFE0E0E0)),
+                        border: Border.all(color: const Color(0xFF2D3A3A)),
                         borderRadius: BorderRadius.circular(4.0),
                       ),
                       child:
@@ -81,7 +74,10 @@ class _WeeklyPageState extends State<WeeklyPage> {
                                 ),
                               )
                               : const Center(
-                                child: Text('No wallpaper preview available.'),
+                                child: Text(
+                                  'No wallpaper preview available.',
+                                  style: TextStyle(color: Colors.white),
+                                ),
                               ),
                     ),
                   ),
@@ -99,7 +95,10 @@ class _WeeklyPageState extends State<WeeklyPage> {
             child: Row(
               children: [
                 if (!widget.appState.hideStatus)
-                  Text('Status: ${widget.appState.status}'),
+                  Text(
+                    'Status: ${widget.appState.status}',
+                    style: const TextStyle(color: Colors.white),
+                  ),
                 const Spacer(),
                 FilledButton(
                   onPressed:

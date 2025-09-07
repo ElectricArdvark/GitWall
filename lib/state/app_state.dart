@@ -64,6 +64,12 @@ class AppState extends ChangeNotifier {
   bool _autoShuffleEnabled = true;
   bool get autoShuffleEnabled => _autoShuffleEnabled;
 
+  bool _closeToTrayEnabled = true;
+  bool get closeToTrayEnabled => _closeToTrayEnabled;
+
+  bool _startMinimizedEnabled = false;
+  bool get startMinimizedEnabled => _startMinimizedEnabled;
+
   Timer? _timer;
 
   AppState() {
@@ -84,6 +90,8 @@ class AppState extends ChangeNotifier {
         await _settingsService.getUseCachedWhenNoInternet();
     _githubToken = await _settingsService.getGithubToken();
     _autoShuffleEnabled = await _settingsService.getAutoShuffle();
+    _closeToTrayEnabled = await _settingsService.isCloseToTrayEnabled();
+    _startMinimizedEnabled = await _settingsService.isStartMinimizedEnabled();
     _githubService.setToken(_githubToken);
     // Initialize cache service with custom wallpaper location
     _cacheService.setCustomWallpaperLocation(_customWallpaperLocation);
@@ -152,6 +160,18 @@ class AppState extends ChangeNotifier {
   Future<void> toggleUseCachedWhenNoInternet(bool enabled) async {
     _useCachedWhenNoInternet = enabled;
     await _settingsService.setUseCachedWhenNoInternet(enabled);
+    notifyListeners();
+  }
+
+  Future<void> toggleCloseToTray(bool enabled) async {
+    _closeToTrayEnabled = enabled;
+    await _settingsService.setCloseToTray(enabled);
+    notifyListeners();
+  }
+
+  Future<void> toggleStartMinimized(bool enabled) async {
+    _startMinimizedEnabled = enabled;
+    await _settingsService.setStartMinimized(enabled);
     notifyListeners();
   }
 
