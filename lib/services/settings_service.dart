@@ -11,6 +11,9 @@ class SettingsService {
   static const _welcomeShownKey = 'welcome_shown';
   static const _hideStatusKey = 'hide_status';
   static const _customWallpaperLocationKey = 'custom_wallpaper_location';
+  static const _useCachedWhenNoInternetKey = 'use_cached_when_no_internet';
+  static const _githubTokenKey = 'github_token';
+  static const _autoShuffleKey = 'auto_shuffle_enabled';
 
   Future<void> saveResolution(String resolution) async {
     final prefs = await SharedPreferences.getInstance();
@@ -103,5 +106,36 @@ class SettingsService {
   Future<String?> getCustomWallpaperLocation() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getString(_customWallpaperLocationKey);
+  }
+
+  Future<void> setUseCachedWhenNoInternet(bool useCached) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_useCachedWhenNoInternetKey, useCached);
+  }
+
+  Future<bool> getUseCachedWhenNoInternet() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_useCachedWhenNoInternetKey) ??
+        true; // Default to true
+  }
+
+  Future<void> saveGithubToken(String token) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_githubTokenKey, token);
+  }
+
+  Future<String> getGithubToken() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_githubTokenKey) ?? '';
+  }
+
+  Future<void> setAutoShuffle(bool enabled) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_autoShuffleKey, enabled);
+  }
+
+  Future<bool> getAutoShuffle() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_autoShuffleKey) ?? true; // Default to true
   }
 }

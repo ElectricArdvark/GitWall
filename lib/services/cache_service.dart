@@ -134,4 +134,26 @@ class CacheService {
       }
     }
   }
+
+  /// Gets the most recent cached wallpaper file
+  Future<File?> getMostRecentCachedWallpaper() async {
+    final cacheIndex = await _loadCacheIndex();
+    if (cacheIndex.isEmpty) return null;
+
+    final path = await _localPath;
+    List<File> files = [];
+    for (final fileName in cacheIndex.values) {
+      final file = File(p.join(path, fileName));
+      if (await file.exists()) {
+        files.add(file);
+      }
+    }
+
+    if (files.isEmpty) return null;
+
+    files.sort(
+      (a, b) => b.statSync().modified.compareTo(a.statSync().modified),
+    );
+    return files.first;
+  }
 }

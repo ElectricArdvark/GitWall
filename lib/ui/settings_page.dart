@@ -23,6 +23,8 @@ class _SettingsPageState extends State<SettingsPage> {
   late TextEditingController _customUrlController;
   // Controller for custom wallpaper location text input
   late TextEditingController _customWallpaperLocationController;
+  // Controller for GitHub token text input
+  late TextEditingController _githubTokenController;
 
   @override
   void initState() {
@@ -35,6 +37,7 @@ class _SettingsPageState extends State<SettingsPage> {
     _customWallpaperLocationController = TextEditingController(
       text: appState.customWallpaperLocation ?? '',
     );
+    _githubTokenController = TextEditingController(text: appState.githubToken);
   }
 
   @override
@@ -42,6 +45,7 @@ class _SettingsPageState extends State<SettingsPage> {
     // Clean up text controller resources
     _customUrlController.dispose();
     _customWallpaperLocationController.dispose();
+    _githubTokenController.dispose();
     super.dispose();
   }
 
@@ -101,10 +105,7 @@ class _SettingsPageState extends State<SettingsPage> {
             children: [
               WindowTitleBarBox(
                 child: Row(
-                  children: [
-                    Expanded(child: MoveWindow()),
-                    const WindowButtons(),
-                  ],
+                  children: [Expanded(child: MoveWindow()), WindowButtons()],
                 ),
               ),
               Expanded(
@@ -143,9 +144,14 @@ class _SettingsPageState extends State<SettingsPage> {
                                 );
                               }).toList(),
                           onChanged: (String? newValue) {
-                            setState(() {
+                            if (newValue != null) {
                               _selectedResolution = newValue;
-                            });
+                              final appState = Provider.of<AppState>(
+                                context,
+                                listen: false,
+                              );
+                              appState.updateResolution(newValue);
+                            }
                           },
                         ),
                         const SizedBox(height: 24.0),
@@ -178,9 +184,14 @@ class _SettingsPageState extends State<SettingsPage> {
                                 );
                               }).toList(),
                           onChanged: (int? newValue) {
-                            setState(() {
+                            if (newValue != null) {
                               _selectedIntervalMinutes = newValue;
-                            });
+                              final appState = Provider.of<AppState>(
+                                context,
+                                listen: false,
+                              );
+                              appState.updateWallpaperInterval(newValue);
+                            }
                           },
                         ),
                         const SizedBox(height: 30),
@@ -201,6 +212,21 @@ class _SettingsPageState extends State<SettingsPage> {
                           content: const Text('Hide status messages'),
                         ),
                         const SizedBox(height: 30),
+                        ToggleSwitch(
+                          checked: appState.useCachedWhenNoInternet,
+                          onChanged:
+                              (v) => appState.toggleUseCachedWhenNoInternet(v),
+                          content: const Text(
+                            'Use cached images when no internet or no file available',
+                          ),
+                        ),
+                        const SizedBox(height: 30),
+                        ToggleSwitch(
+                          checked: appState.autoShuffleEnabled,
+                          onChanged: (v) => appState.toggleAutoShuffle(v),
+                          content: const Text('Enable auto-shuffle wallpapers'),
+                        ),
+                        const SizedBox(height: 30),
                         HyperlinkButton(
                           child: const Text('View Default GitWall Repository'),
                           onPressed:
@@ -218,6 +244,14 @@ class _SettingsPageState extends State<SettingsPage> {
                           placeholder: 'Enter custom repository URL',
                           onChanged:
                               (value) => appState.setCustomRepoUrl(value),
+                        ),
+                        const SizedBox(height: 30),
+                        const Text('GitHub Token'),
+                        const SizedBox(height: 8.0),
+                        TextBox(
+                          controller: _githubTokenController,
+                          placeholder: 'Enter GitHub token for private repos',
+                          onChanged: (value) => appState.setGithubToken(value),
                         ),
                         const SizedBox(height: 30),
                         const Text('Wallpaper Storage Location'),

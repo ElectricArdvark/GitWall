@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:fluent_ui/fluent_ui.dart';
 import 'package:gitwall/services/settings_service.dart';
 import 'package:gitwall/services/startup_service.dart';
+import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
 import '../constants.dart'; // Import constants.dart
 import '../services/cache_service.dart';
@@ -13,6 +14,7 @@ import '../utils/helpers.dart';
 class AppState extends ChangeNotifier {
   // Services
   final GitHubService _githubService = GitHubService();
+  GitHubService get githubService => _githubService;
   final CacheService _cacheService = CacheService();
   final WallpaperService _wallpaperService = WallpaperService();
   final SettingsService _settingsService = SettingsService();
@@ -53,6 +55,15 @@ class AppState extends ChangeNotifier {
   String? _customWallpaperLocation;
   String? get customWallpaperLocation => _customWallpaperLocation;
 
+  bool _useCachedWhenNoInternet = true;
+  bool get useCachedWhenNoInternet => _useCachedWhenNoInternet;
+
+  String _githubToken = "";
+  String get githubToken => _githubToken;
+
+  bool _autoShuffleEnabled = true;
+  bool get autoShuffleEnabled => _autoShuffleEnabled;
+
   Timer? _timer;
 
   AppState() {
@@ -69,6 +80,11 @@ class AppState extends ChangeNotifier {
     _hideStatus = await _settingsService.getHideStatus();
     _customWallpaperLocation =
         await _settingsService.getCustomWallpaperLocation();
+    _useCachedWhenNoInternet =
+        await _settingsService.getUseCachedWhenNoInternet();
+    _githubToken = await _settingsService.getGithubToken();
+    _autoShuffleEnabled = await _settingsService.getAutoShuffle();
+    _githubService.setToken(_githubToken);
     // Initialize cache service with custom wallpaper location
     _cacheService.setCustomWallpaperLocation(_customWallpaperLocation);
     // No need to load welcome state from persistence anymore
@@ -81,15 +97,17 @@ class AppState extends ChangeNotifier {
   void _startScheduler() {
     // Cancel any existing timer
     _timer?.cancel();
-    // Check every hour
-    _timer = Timer.periodic(Duration(minutes: _wallpaperIntervalMinutes), (
-      Timer timer,
-    ) {
-      // print(
-      //   "Scheduler check running (interval: $_wallpaperIntervalMinutes minutes)...",
-      // );
-      updateWallpaper(isManual: false);
-    });
+    // Only start timer if auto shuffle is enabled and we're on weekly tab
+    if (_autoShuffleEnabled) {
+      _timer = Timer.periodic(Duration(minutes: _wallpaperIntervalMinutes), (
+        Timer timer,
+      ) {
+        // print(
+        //   "Scheduler check running (interval: $_wallpaperIntervalMinutes minutes)...",
+        // );
+        updateWallpaper(isManual: false, fromTimer: true);
+      });
+    }
   }
 
   Future<void> updateRepoUrl(String newUrl) async {
@@ -113,7 +131,9 @@ class AppState extends ChangeNotifier {
     _activeTab = tab;
     await _settingsService.saveActiveTab(tab);
     notifyListeners();
-    await updateWallpaper(isManual: true);
+    if (_activeTab == 'Weekly') {
+      await updateWallpaper(isManual: true);
+    }
   }
 
   Future<void> toggleAutostart(bool enabled) async {
@@ -129,6 +149,19 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> toggleUseCachedWhenNoInternet(bool enabled) async {
+    _useCachedWhenNoInternet = enabled;
+    await _settingsService.setUseCachedWhenNoInternet(enabled);
+    notifyListeners();
+  }
+
+  Future<void> toggleAutoShuffle(bool enabled) async {
+    _autoShuffleEnabled = enabled;
+    await _settingsService.setAutoShuffle(enabled);
+    _startScheduler();
+    notifyListeners();
+  }
+
   Future<void> updateWallpaperInterval(int minutes) async {
     _wallpaperIntervalMinutes = minutes;
     await _settingsService.saveWallpaperInterval(minutes);
@@ -138,6 +171,11 @@ class AppState extends ChangeNotifier {
 
   void hideWelcomeInRightSide() {
     _showWelcomeInRightSide = false;
+    notifyListeners();
+  }
+
+  void setShowWelcomeInRightSide(bool show) {
+    _showWelcomeInRightSide = show;
     notifyListeners();
   }
 
@@ -170,11 +208,41 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> updateWallpaper({bool isManual = false}) async {
+  Future<void> setGithubToken(String token) async {
+    _githubToken = token;
+    await _settingsService.saveGithubToken(token);
+    _githubService.setToken(token);
+    notifyListeners();
+  }
+
+  Future<String> getGithubToken() async {
+    _githubToken = await _settingsService.getGithubToken();
+    return _githubToken;
+  }
+
+  Future<bool> _isInternetAvailable() async {
+    try {
+      final response = await http
+          .get(Uri.parse('http://www.google.com'))
+          .timeout(const Duration(seconds: 5));
+      return response.statusCode == 200;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  Future<void> updateWallpaper({
+    bool isManual = false,
+    bool fromTimer = false,
+  }) async {
     if (isManual) {
       _updateStatus(
         "Force refresh initiated - checking for cached wallpaper...",
       );
+    } else if (fromTimer && (_activeTab == 'Multi' || _activeTab == 'Custom')) {
+      // Skip auto-update for Multi and Custom tabs from timer
+      _updateStatus("Skipping auto-update for $_activeTab tab");
+      return;
     } else {
       _updateStatus("Checking for new wallpaper...");
     }
@@ -210,10 +278,53 @@ class AppState extends ChangeNotifier {
         return;
       }
 
+      final bool isInternetAvailable = await _isInternetAvailable();
+
+      if (!isInternetAvailable) {
+        _updateStatus("No internet connection detected.");
+      }
+
       // Wallpaper source parameters are handled individually for each tab
 
       if (_activeTab == 'Weekly') {
         // For weekly, try to build the expected filename
+
+        if (!isInternetAvailable && _useCachedWhenNoInternet) {
+          for (final ext in supportedImageExtensions) {
+            final candidateFileName = '${day}_$resolution$ext';
+            final candidateUniqueId = _generateWallpaperUniqueId(
+              repoUrlToUse,
+              day,
+              resolution,
+              candidateFileName,
+            );
+            if (await _cacheService.isWallpaperCached(candidateUniqueId)) {
+              final cachedFile = await _cacheService.getCachedWallpaper(
+                candidateUniqueId,
+              );
+              if (cachedFile != null) {
+                _wallpaperService.setWallpaper(cachedFile.path);
+                _updateStatus(
+                  "Using cached image due to no internet: $candidateFileName.",
+                  file: cachedFile,
+                );
+                return;
+              }
+            }
+          }
+          // If no matching cache, use most recent
+          final mostRecent = await _cacheService.getMostRecentCachedWallpaper();
+          if (mostRecent != null) {
+            _wallpaperService.setWallpaper(mostRecent.path);
+            _updateStatus(
+              "Using cached image due to no internet.",
+              file: mostRecent,
+            );
+            return;
+          }
+          throw Exception("No cached wallpaper available and no internet.");
+        }
+
         for (final ext in supportedImageExtensions) {
           final candidateFileName = '${day}_$resolution$ext';
           final candidateUniqueId = _generateWallpaperUniqueId(
@@ -272,6 +383,20 @@ class AppState extends ChangeNotifier {
 
         // For Multi, we need to download first to get the filename
         // We'll cache the result after downloading
+
+        if (!isInternetAvailable && _useCachedWhenNoInternet) {
+          final cached = await _cacheService.getMostRecentCachedWallpaper();
+          if (cached != null) {
+            _wallpaperService.setWallpaper(cached.path);
+            _updateStatus(
+              "Using cached image due to no internet.",
+              file: cached,
+            );
+            return;
+          }
+          throw Exception("No cached wallpaper available and no internet.");
+        }
+
         _updateStatus("Downloading wallpaper from $_activeTab repository...");
         downloadResult = await _githubService.downloadWallpaper(
           repoUrlToUse,
@@ -347,6 +472,40 @@ class AppState extends ChangeNotifier {
     }
     // print(_status); // For debugging
     notifyListeners();
+  }
+
+  /// Downloads and sets wallpaper from a given URL
+  Future<void> setWallpaperForUrl(String url) async {
+    _updateStatus("Downloading wallpaper from URL...");
+
+    try {
+      final response = await http.get(Uri.parse(url));
+      if (response.statusCode == 200) {
+        final uri = Uri.parse(url);
+        final fileName = uri.pathSegments.last;
+        final day = ''; // Not applicable
+        final resolution = _currentResolution;
+        final uniqueId = _generateWallpaperUniqueId(
+          '', // repo not needed here
+          day,
+          resolution,
+          fileName,
+        );
+
+        final savedFile = await _cacheService.saveWallpaperWithId(
+          uniqueId,
+          fileName,
+          response.bodyBytes,
+        );
+
+        _wallpaperService.setWallpaper(savedFile.path);
+        _updateStatus("Wallpaper set from URL: $fileName", file: savedFile);
+      } else {
+        throw Exception("Failed to download: Status ${response.statusCode}");
+      }
+    } catch (e) {
+      _updateStatus("Error setting wallpaper: ${e.toString()}");
+    }
   }
 
   @override

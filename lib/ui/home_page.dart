@@ -1,9 +1,12 @@
 import 'package:bitsdojo_window/bitsdojo_window.dart';
 import 'package:fluent_ui/fluent_ui.dart' hide Colors;
-import 'package:flutter/material.dart' hide FilledButton;
+//import 'package:flutter/material.dart' hide FilledButton;
 import 'package:gitwall/ui/settings_page.dart';
 import 'package:provider/provider.dart';
 import 'package:gitwall/ui/welcome_page.dart';
+import 'package:gitwall/ui/weekly_page.dart';
+import 'package:gitwall/ui/multi_page.dart';
+import 'package:gitwall/ui/custom_page.dart';
 import '../state/app_state.dart';
 
 // Main home page widget that manages the overall app layout
@@ -89,8 +92,17 @@ class _HomePageState extends State<HomePage> {
         },
       );
     }
-    // Return main wallpaper content area
-    return RightSideZone(appState: appState);
+    // Return main wallpaper content area based on active tab
+    switch (appState.activeTab) {
+      case 'Weekly':
+        return WeeklyPage(appState: appState);
+      case 'Multi':
+        return MultiPage(appState: appState);
+      case 'Custom':
+        return CustomPage(appState: appState);
+      default:
+        return WeeklyPage(appState: appState);
+    }
   }
 }
 
@@ -130,9 +142,10 @@ class LeftSideZone extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.all(8.0),
               child:
-                  navigationIndex == 0
+                  appState.showWelcomeInRightSide && navigationIndex == 0
                       ? FilledButton(
-                        onPressed: () => appState.hideWelcomeInRightSide(),
+                        onPressed:
+                            () => appState.setShowWelcomeInRightSide(true),
                         child: const Row(
                           children: [
                             Icon(FluentIcons.home),
@@ -143,7 +156,7 @@ class LeftSideZone extends StatelessWidget {
                       )
                       : Button(
                         onPressed: () {
-                          appState.hideWelcomeInRightSide();
+                          appState.setShowWelcomeInRightSide(true);
                           onNavigationChanged(0);
                         },
                         child: const Row(
@@ -203,6 +216,7 @@ class LeftSideZone extends StatelessWidget {
                               onPressed: () {
                                 appState.hideWelcomeInRightSide();
                                 appState.setActiveTab('Weekly');
+                                onNavigationChanged(0);
                               },
                               child: const Text('Weekly'),
                             )
@@ -210,6 +224,7 @@ class LeftSideZone extends StatelessWidget {
                               onPressed: () {
                                 appState.hideWelcomeInRightSide();
                                 appState.setActiveTab('Weekly');
+                                onNavigationChanged(0);
                               },
                               child: const Text('Weekly'),
                             ),
@@ -223,6 +238,7 @@ class LeftSideZone extends StatelessWidget {
                               onPressed: () {
                                 appState.hideWelcomeInRightSide();
                                 appState.setActiveTab('Multi');
+                                onNavigationChanged(0);
                               },
                               child: const Text('Multi'),
                             )
@@ -230,6 +246,7 @@ class LeftSideZone extends StatelessWidget {
                               onPressed: () {
                                 appState.hideWelcomeInRightSide();
                                 appState.setActiveTab('Multi');
+                                onNavigationChanged(0);
                               },
                               child: const Text('Multi'),
                             ),
@@ -243,6 +260,7 @@ class LeftSideZone extends StatelessWidget {
                               onPressed: () {
                                 appState.hideWelcomeInRightSide();
                                 appState.setActiveTab('Custom');
+                                onNavigationChanged(0);
                               },
                               child: const Text('Custom'),
                             )
@@ -250,6 +268,7 @@ class LeftSideZone extends StatelessWidget {
                               onPressed: () {
                                 appState.hideWelcomeInRightSide();
                                 appState.setActiveTab('Custom');
+                                onNavigationChanged(0);
                               },
                               child: const Text('Custom'),
                             ),
@@ -264,144 +283,6 @@ class LeftSideZone extends StatelessWidget {
   }
 }
 
-// Color constants for the right side gradient background
-const rightbackgroundStartColor = Color(0xFFFFD500);
-const rightbackgroundEndColor = Color(0xFFF6A00C);
-
-// Main content area on the right side showing wallpaper preview and controls
-class RightSideZone extends StatefulWidget {
-  final AppState appState;
-  const RightSideZone({super.key, required this.appState});
-
-  @override
-  State<RightSideZone> createState() => _RightSideZoneState();
-}
-
-class _RightSideZoneState extends State<RightSideZone> {
-  // Get descriptive text for the currently active tab
-  String _getDescription(String tab) {
-    switch (tab) {
-      case 'Weekly':
-        return 'Uses the default repository for weekly wallpapers.';
-      case 'Multi':
-        return 'Uses a repository with multiple resolutions.';
-      case 'Custom':
-        return 'Uses a custom repository URL.';
-      default:
-        return '';
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    // Get description for the current active tab
-    String description = _getDescription(widget.appState.activeTab);
-    return Container(
-      // Apply gradient background to the right side
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [rightbackgroundStartColor, rightbackgroundEndColor],
-          stops: [0.0, 1.0],
-        ),
-      ),
-      child: Column(
-        children: [
-          // Window title bar with window controls
-          WindowTitleBarBox(
-            child: Row(
-              children: [Expanded(child: MoveWindow()), const WindowButtons()],
-            ),
-          ),
-          // Main content area showing wallpaper information and preview
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const SizedBox(height: 10),
-                // Display description of the current tab's mode
-                Padding(
-                  padding: const EdgeInsets.only(left: 16.0, right: 16.0),
-                  child: SizedBox(
-                    height: 20,
-                    child: Center(child: Text(description)),
-                  ),
-                ),
-                const SizedBox(height: 10),
-                // Header for the wallpaper preview section
-                const Padding(
-                  padding: EdgeInsets.only(left: 16.0, right: 16.0),
-                  child: Text(
-                    'Wallpaper Preview:',
-                    style: TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                ),
-                const SizedBox(height: 5),
-                // Wallpaper preview container
-                Padding(
-                  padding: const EdgeInsets.only(left: 16.0, right: 16.0),
-                  child: SizedBox(
-                    height: 300,
-                    child: Container(
-                      width: double.infinity,
-                      // Border styling for the preview area
-                      decoration: BoxDecoration(
-                        border: Border.all(color: const Color(0xFFE0E0E0)),
-                        borderRadius: BorderRadius.circular(4.0),
-                      ),
-                      // Display wallpaper image if available, otherwise show placeholder
-                      child:
-                          widget.appState.currentWallpaperFile != null &&
-                                  widget.appState.currentWallpaperFile!
-                                      .existsSync()
-                              ? Image.file(
-                                widget.appState.currentWallpaperFile!,
-                                fit: BoxFit.fill,
-                                // Use file path as key for efficient image updates
-                                key: ValueKey(
-                                  widget.appState.currentWallpaperFile!.path,
-                                ),
-                              )
-                              : const Center(
-                                child: Text('No wallpaper preview available.'),
-                              ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          // Bottom status and control bar
-          Padding(
-            padding: const EdgeInsets.only(
-              left: 16.0,
-              right: 16.0,
-              bottom: 10.0,
-              top: 8.0,
-            ),
-            child: Row(
-              children: [
-                // Display current app status (conditionally hidden)
-                if (!widget.appState.hideStatus)
-                  Text('Status: ${widget.appState.status}'),
-                const Spacer(),
-                // Manual refresh button for forcing wallpaper update
-                FilledButton(
-                  onPressed:
-                      () => widget.appState.updateWallpaper(isManual: true),
-                  child: const Text('Force Refresh'),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// Window button color schemes for minimize and maximize buttons
 var buttonColors = WindowButtonColors(
   iconNormal: const Color(0xFF805306),
   mouseOver: const Color(0xFFF6A00C),
@@ -410,7 +291,6 @@ var buttonColors = WindowButtonColors(
   iconMouseDown: const Color(0xFFFFD500),
 );
 
-// Special color scheme for close button (red to indicate destructive action)
 var closeButtonColors = WindowButtonColors(
   mouseOver: const Color(0xFFD32F2F),
   mouseDown: const Color(0xFFB71C1C),
@@ -418,8 +298,6 @@ var closeButtonColors = WindowButtonColors(
   iconMouseOver: const Color(0xFFFFFFFF),
 );
 
-// Custom window control buttons (minimize, maximize, close)
-// Replaces default window buttons with styled versions
 class WindowButtons extends StatelessWidget {
   const WindowButtons({super.key});
 
@@ -427,11 +305,8 @@ class WindowButtons extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        // Minimize window button
         MinimizeWindowButton(colors: buttonColors),
-        // Maximize window button
         MaximizeWindowButton(colors: buttonColors),
-        // Close window button
         CloseWindowButton(colors: closeButtonColors),
       ],
     );

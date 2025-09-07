@@ -12,6 +12,12 @@ class WallpaperDownloadResult {
 }
 
 class GitHubService {
+  String _githubToken = '';
+
+  void setToken(String token) {
+    _githubToken = token;
+  }
+
   /// Transforms a standard GitHub repo URL to a raw content URL for a specific file.
   String getRawContentUrl(
     String repoUrl,
@@ -48,6 +54,48 @@ class GitHubService {
     }
   }
 
+  /// Fetches a list of raw image URLs from the repository
+  Future<List<String>> getImageUrls(
+    String repoUrl,
+    String resolution,
+    String day,
+    int limit,
+  ) async {
+    String subPath;
+    if (repoUrl == defaultRepoUrl && day.toLowerCase() == 'multi') {
+      subPath = 'Multi/$resolution';
+    } else {
+      subPath = ''; // Root for custom
+    }
+
+    final allFiles = await _fetchRepositoryContents(repoUrl, subPath);
+    final imageFiles =
+        allFiles.where((file) {
+          return supportedImageExtensions.any(
+            (ext) => file.toLowerCase().endsWith(ext),
+          );
+        }).toList();
+
+    final limitedFiles = imageFiles.take(limit).toList();
+
+    final uri = Uri.parse(repoUrl);
+    final pathSegments = uri.pathSegments.where((s) => s.isNotEmpty).toList();
+    final user = pathSegments[0];
+    final repo = pathSegments[1];
+    final baseUrl = 'https://raw.githubusercontent.com/$user/$repo/main';
+
+    List<String> urls = [];
+    for (final file in limitedFiles) {
+      if (subPath.isNotEmpty) {
+        urls.add('$baseUrl/$subPath/$file');
+      } else {
+        urls.add('$baseUrl/$file');
+      }
+    }
+
+    return urls;
+  }
+
   Future<List<String>> _fetchRepositoryContents(
     String repoUrl, [
     String? subPath,
@@ -69,8 +117,13 @@ class GitHubService {
       contentsUrl += '/$subPath';
     }
 
+    final headers =
+        _githubToken.isNotEmpty
+            ? <String, String>{'Authorization': 'token $_githubToken'}
+            : <String, String>{};
+
     try {
-      final response = await http.get(Uri.parse(contentsUrl));
+      final response = await http.get(Uri.parse(contentsUrl), headers: headers);
       if (response.statusCode == 200) {
         final List<dynamic> jsonResponse = json.decode(response.body);
         final files =
