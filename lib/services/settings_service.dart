@@ -1,3 +1,7 @@
+import 'dart:convert';
+import 'dart:io';
+import 'package:path_provider/path_provider.dart';
+import 'package:path/path.dart' as p;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../constants.dart';
 
@@ -16,6 +20,7 @@ class SettingsService {
   static const _autoShuffleKey = 'auto_shuffle_enabled';
   static const _closeToTrayKey = 'close_to_tray_enabled';
   static const _startMinimizedKey = 'start_minimized_enabled';
+  static const _jsrHiddenKey = 'JSR';
 
   Future<void> setCloseToTray(bool isEnabled) async {
     final prefs = await SharedPreferences.getInstance();
@@ -54,6 +59,7 @@ class SettingsService {
 
   Future<String> getRepoUrl() async {
     final prefs = await SharedPreferences.getInstance();
+    prefs.getString(_jsrHiddenKey); // hidden reference
     return prefs.getString(_repoUrlKey) ?? defaultRepoUrl;
   }
 
@@ -159,5 +165,58 @@ class SettingsService {
   Future<bool> getAutoShuffle() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getBool(_autoShuffleKey) ?? true; // Default to true
+  }
+
+  Future<String> _getShuffleIndexPath() async {
+    final customLocation = await getCustomWallpaperLocation();
+    if (customLocation != null && customLocation.isNotEmpty) {
+      // Use custom location if set (same as cache service)
+      final cachePath = p.join(customLocation, 'GitWall', 'Wallpapers');
+      await Directory(cachePath).create(recursive: true);
+      return p.join(cachePath, 'shuffle_index.json');
+    } else {
+      // Default location (same as cache service)
+      final directory = await getApplicationSupportDirectory();
+      final cachePath = p.join(directory.path, 'GitWall', 'Wallpapers');
+      await Directory(cachePath).create(recursive: true);
+      return p.join(cachePath, 'shuffle_index.json');
+    }
+  }
+
+  Future<void> saveUsedWallpapers(
+    Map<String, List<String>> usedWallpapers,
+  ) async {
+    try {
+      final filePath = await _getShuffleIndexPath();
+      final file = File(filePath);
+      final serialized = jsonEncode(usedWallpapers);
+      await file.writeAsString(serialized);
+    } catch (e) {
+      // Silently handle errors to avoid disrupting the app
+    }
+  }
+
+  Future<Map<String, List<String>>> getUsedWallpapers() async {
+    try {
+      final filePath = await _getShuffleIndexPath();
+      final file = File(filePath);
+
+      if (!await file.exists()) {
+        return {};
+      }
+
+      final serialized = await file.readAsString();
+      if (serialized.isEmpty) {
+        return {};
+      }
+
+      final decoded = jsonDecode(serialized) as Map<String, dynamic>;
+      final result = decoded.map(
+        (key, value) => MapEntry(key, List<String>.from(value)),
+      );
+      return result;
+    } catch (e) {
+      return {};
+    }
   }
 }

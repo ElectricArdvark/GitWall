@@ -1,7 +1,8 @@
 import 'package:bitsdojo_window/bitsdojo_window.dart';
 import 'package:fluent_ui/fluent_ui.dart' hide Colors;
 import 'package:flutter/material.dart' show Colors;
-import 'package:gitwall/ui/home_page.dart';
+import 'package:gitwall/ui/base_page.dart';
+import 'package:provider/provider.dart';
 import '../state/app_state.dart';
 
 const rightbackgroundStartColor = Color(0xFFFFD500);
@@ -167,14 +168,35 @@ class _CustomPageState extends State<CustomPage> {
                   ),
                 ),
                 const SizedBox(height: 10),
-                const Padding(
-                  padding: EdgeInsets.only(left: 16.0, right: 16.0),
-                  child: Text(
-                    'Wallpaper Preview:',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
+                Padding(
+                  padding: const EdgeInsets.only(left: 16.0, right: 16.0),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        'Wallpaper Preview:',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                      Consumer<AppState>(
+                        builder:
+                            (context, appState, child) => Button(
+                              onPressed:
+                                  () => appState.toggleAutoShuffle(
+                                    !appState.autoShuffleEnabled,
+                                  ),
+                              child: Icon(
+                                appState.autoShuffleEnabled
+                                    ? FluentIcons
+                                        .repeat_all //autoshuffle is on
+                                    : FluentIcons.repeat_one,
+                                color: Colors.white,
+                              ),
+                            ),
+                      ),
+                    ],
                   ),
                 ),
                 const SizedBox(height: 5),
@@ -190,29 +212,6 @@ class _CustomPageState extends State<CustomPage> {
                       child: _buildPreviewContent(),
                     ),
                   ),
-                ),
-              ],
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.only(
-              left: 16.0,
-              right: 16.0,
-              bottom: 10.0,
-              top: 8.0,
-            ),
-            child: Row(
-              children: [
-                if (!widget.appState.hideStatus)
-                  Text(
-                    'Status: ${widget.appState.status}',
-                    style: const TextStyle(color: Colors.white),
-                  ),
-                const Spacer(),
-                FilledButton(
-                  onPressed:
-                      () => widget.appState.updateWallpaper(isManual: true),
-                  child: const Text('Force Refresh'),
                 ),
               ],
             ),

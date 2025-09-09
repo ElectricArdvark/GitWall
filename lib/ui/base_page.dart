@@ -211,6 +211,36 @@ class LeftSideZone extends StatelessWidget {
                 ),
               ),
             ),
+            // Status and Force Refresh section
+            Padding(
+              padding: const EdgeInsets.only(
+                left: 16.0,
+                right: 16.0,
+                bottom: 16.0,
+                top: 8.0,
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (!appState.hideStatus)
+                    Text(
+                      'Status: ${appState.status}',
+                      style: const TextStyle(
+                        color: Color(0xFFFFFFFF),
+                        fontSize: 12,
+                      ),
+                    ),
+                  const SizedBox(height: 8),
+                  SizedBox(
+                    width: double.infinity,
+                    child: FilledButton(
+                      onPressed: () => appState.updateWallpaper(isManual: true),
+                      child: const Text('Force Refresh'),
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ],
         ),
       ),

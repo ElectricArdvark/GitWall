@@ -5,7 +5,7 @@ import 'package:provider/provider.dart';
 import 'package:tray_manager/tray_manager.dart';
 import 'package:window_manager/window_manager.dart';
 import 'constants.dart';
-import 'ui/home_page.dart';
+import 'ui/base_page.dart';
 
 // Entry point of the application
 void main() async {
@@ -23,9 +23,9 @@ void main() async {
   // Configure the desktop window appearance and behavior when ready
   doWhenWindowReady(() {
     // Set the initial window dimensions
-    const initialSize = Size(1000, 445);
+    const initialSize = Size(1000, 500);
     // Set minimum and current window size
-    appWindow.minSize = initialSize; //Size(800, 440);
+    appWindow.minSize = initialSize; //Size(800, 445);
     appWindow.size = initialSize;
     // Center the window on screen
     appWindow.alignment = Alignment.center;
@@ -105,6 +105,7 @@ class _MyAppState extends State<MyApp> with WindowListener, TrayListener {
   @override
   void onWindowClose() async {
     final appState = Provider.of<AppState>(context, listen: false);
+    await appState.saveStateBeforeClose();
     if (appState.closeToTrayEnabled) {
       await windowManager.hide();
     } else {
@@ -128,10 +129,12 @@ class _MyAppState extends State<MyApp> with WindowListener, TrayListener {
   }
 
   @override
-  void onTrayMenuItemClick(MenuItem menuItem) {
+  void onTrayMenuItemClick(MenuItem menuItem) async {
     if (menuItem.key == 'show_window') {
       windowManager.show();
     } else if (menuItem.key == 'exit_app') {
+      final appState = Provider.of<AppState>(context, listen: false);
+      await appState.saveStateBeforeClose();
       windowManager.destroy();
     }
   }
