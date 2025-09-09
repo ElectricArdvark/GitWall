@@ -18,12 +18,52 @@ class CustomPage extends StatefulWidget {
 }
 
 class _CustomPageState extends State<CustomPage> {
-  Future<List<String>>? _imageUrlsFuture;
+  List<String> _imageUrls = [];
+  bool _isLoading = false;
+  bool _hasError = false;
+  String _errorMessage = '';
+  late ScrollController _scrollController;
+  bool _showLoadMoreButton = false;
 
   @override
   void initState() {
     super.initState();
+    _scrollController = ScrollController()..addListener(_scrollListener);
     _fetchUrlsIfNeeded();
+    widget.appState.addListener(_onAppStateChanged);
+  }
+
+  @override
+  void dispose() {
+    widget.appState.removeListener(_onAppStateChanged);
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _scrollListener() {
+    if (_scrollController.position.pixels >=
+        _scrollController.position.maxScrollExtent - 50) {
+      if (!_showLoadMoreButton && !_isLoading) {
+        setState(() {
+          _showLoadMoreButton = true;
+        });
+      }
+    } else {
+      if (_showLoadMoreButton) {
+        setState(() {
+          _showLoadMoreButton = false;
+        });
+      }
+    }
+  }
+
+  void _onAppStateChanged() {
+    if (widget.appState.bannedWallpapersChanged) {
+      // Re-fetch images if the banned list changes
+      _imageUrls = [];
+      _fetchUrlsIfNeeded();
+      widget.appState.resetBannedWallpapersChanged();
+    }
   }
 
   @override
@@ -32,32 +72,71 @@ class _CustomPageState extends State<CustomPage> {
     if (oldWidget.appState.customRepoUrl != widget.appState.customRepoUrl ||
         oldWidget.appState.currentResolution !=
             widget.appState.currentResolution) {
+      setState(() {
+        _imageUrls = [];
+        _hasError = false;
+        _errorMessage = '';
+      });
       _fetchUrlsIfNeeded();
     }
   }
 
   void _fetchUrlsIfNeeded() {
-    if (widget.appState.customRepoUrl.isNotEmpty) {
+    if (widget.appState.customRepoUrl.isNotEmpty && _imageUrls.isEmpty) {
+      _loadImages(10);
+    }
+  }
+
+  void _loadImages(int count, {int offset = 0}) async {
+    setState(() {
+      _isLoading = true;
+      _hasError = false;
+    });
+    try {
+      final repoUrl = widget.appState.customRepoUrl;
+      final day = '';
+      final allUrls = await widget.appState.githubService.getImageUrls(
+        repoUrl,
+        widget.appState.currentResolution,
+        day,
+        count * 2, // Get more to account for banned ones
+        offset: offset,
+      );
+
+      // Filter out banned wallpapers
+      final banned = widget.appState.bannedWallpapers['Custom'] ?? [];
+      final filteredUrls =
+          allUrls
+              .where((url) {
+                final uri = Uri.parse(url);
+                final fileName = uri.pathSegments.last;
+                final uniqueId = widget.appState.generateWallpaperUniqueId(
+                  repoUrl,
+                  '',
+                  widget.appState.currentResolution,
+                  fileName,
+                );
+                return !banned.any(
+                  (bannedWallpaper) => bannedWallpaper['uniqueId'] == uniqueId,
+                );
+              })
+              .take(count)
+              .toList();
+
       setState(() {
-        _imageUrlsFuture = _fetchImageUrls();
+        _imageUrls.addAll(filteredUrls);
+        _isLoading = false;
       });
-    } else {
+    } catch (e) {
       setState(() {
-        _imageUrlsFuture = null;
+        _hasError = true;
+        _errorMessage = e.toString();
+        _isLoading = false;
       });
     }
   }
 
-  Future<List<String>> _fetchImageUrls() async {
-    final repoUrl = widget.appState.customRepoUrl;
-    final day = '';
-    return await widget.appState.githubService.getImageUrls(
-      repoUrl,
-      widget.appState.currentResolution,
-      day,
-      10,
-    );
-  }
+  void _loadMore() => _loadImages(10, offset: _imageUrls.length);
 
   Widget _buildPreviewContent() {
     if (widget.appState.customRepoUrl.isEmpty) {
@@ -68,52 +147,89 @@ class _CustomPageState extends State<CustomPage> {
         ),
       );
     }
-    if (_imageUrlsFuture == null) {
+    if (_imageUrls.isEmpty && _isLoading) {
       return const Center(
         child: Text('Loading...', style: TextStyle(color: Colors.white)),
       );
     }
-    return FutureBuilder<List<String>>(
-      future: _imageUrlsFuture!,
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(
-            child: Text(
-              'Loading images...',
-              style: TextStyle(color: Colors.white),
-            ),
-          );
-        } else if (snapshot.hasError) {
-          return Center(
-            child: Text(
-              'Error: ${snapshot.error}',
+    if (_hasError) {
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'Error loading images: $_errorMessage',
               style: const TextStyle(color: Colors.white),
+              textAlign: TextAlign.center,
             ),
-          );
-        } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-          return const Center(
-            child: Text(
-              'No images found.',
-              style: TextStyle(color: Colors.white),
+            const SizedBox(height: 8),
+            Button(
+              onPressed: () => _loadImages(10),
+              child: const Text('Retry'),
             ),
-          );
-        } else {
-          final urls = snapshot.data!;
-          return GridView.builder(
-            key: ValueKey("Custom_${DateTime.now().millisecondsSinceEpoch}"),
+          ],
+        ),
+      );
+    }
+    if (_imageUrls.isEmpty) {
+      return const Center(
+        child: Text('No images found.', style: TextStyle(color: Colors.white)),
+      );
+    }
+    return Column(
+      children: [
+        Expanded(
+          child: GridView.builder(
+            key: const ValueKey("Custom"),
+            controller: _scrollController,
             gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
               crossAxisCount: 2,
               childAspectRatio: 1.5,
             ),
-            itemCount: urls.length,
+            itemCount: _imageUrls.length,
             itemBuilder: (context, index) {
               return Padding(
                 padding: const EdgeInsets.all(4.0),
                 child: GestureDetector(
-                  onTap: () => widget.appState.setWallpaperForUrl(urls[index]),
+                  onTap:
+                      () =>
+                          widget.appState.setWallpaperForUrl(_imageUrls[index]),
+                  onSecondaryTap: () {
+                    // Show context menu for ban option
+                    showDialog(
+                      context: context,
+                      builder: (BuildContext context) {
+                        return ContentDialog(
+                          title: const Text('Wallpaper Options'),
+                          content: const Text(
+                            'What would you like to do with this wallpaper?',
+                          ),
+                          actions: [
+                            Button(
+                              onPressed: () async {
+                                Navigator.of(context).pop();
+                                final urlToBan = _imageUrls[index];
+                                // Remove from UI immediately
+                                setState(() {
+                                  _imageUrls.removeAt(index);
+                                });
+                                // Then ban in background
+                                await widget.appState.banWallpaper(urlToBan);
+                              },
+                              child: const Text('Ban Wallpaper'),
+                            ),
+                            Button(
+                              onPressed: () => Navigator.of(context).pop(),
+                              child: const Text('Cancel'),
+                            ),
+                          ],
+                        );
+                      },
+                    );
+                  },
                   child: Image.network(
-                    urls[index],
-                    key: ValueKey(urls[index]),
+                    _imageUrls[index],
+                    key: ValueKey(_imageUrls[index]),
                     fit: BoxFit.cover,
                     loadingBuilder: (context, child, loadingProgress) {
                       if (loadingProgress == null) return child;
@@ -133,9 +249,16 @@ class _CustomPageState extends State<CustomPage> {
                 ),
               );
             },
-          );
-        }
-      },
+          ),
+        ),
+        if (_isLoading)
+          const Padding(padding: EdgeInsets.all(8.0), child: ProgressRing())
+        else if (_showLoadMoreButton)
+          Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: Button(onPressed: _loadMore, child: const Text('Load More')),
+          ),
+      ],
     );
   }
 
@@ -180,21 +303,36 @@ class _CustomPageState extends State<CustomPage> {
                           color: Colors.white,
                         ),
                       ),
-                      Consumer<AppState>(
-                        builder:
-                            (context, appState, child) => Button(
-                              onPressed:
-                                  () => appState.toggleAutoShuffle(
-                                    !appState.autoShuffleEnabled,
+                      Row(
+                        children: [
+                          Consumer<AppState>(
+                            builder:
+                                (context, appState, child) => Button(
+                                  onPressed: () => appState.setNextWallpaper(),
+                                  child: const Icon(
+                                    FluentIcons.next,
+                                    color: Colors.white,
                                   ),
-                              child: Icon(
-                                appState.autoShuffleEnabled
-                                    ? FluentIcons
-                                        .repeat_all //autoshuffle is on
-                                    : FluentIcons.repeat_one,
-                                color: Colors.white,
-                              ),
-                            ),
+                                ),
+                          ),
+                          const SizedBox(width: 8),
+                          Consumer<AppState>(
+                            builder:
+                                (context, appState, child) => Button(
+                                  onPressed:
+                                      () => appState.toggleAutoShuffle(
+                                        !appState.autoShuffleEnabled,
+                                      ),
+                                  child: Icon(
+                                    appState.autoShuffleEnabled
+                                        ? FluentIcons
+                                            .repeat_all //autoshuffle is on
+                                        : FluentIcons.repeat_one,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                          ),
+                        ],
                       ),
                     ],
                   ),
@@ -202,7 +340,11 @@ class _CustomPageState extends State<CustomPage> {
                 const SizedBox(height: 5),
                 Expanded(
                   child: Padding(
-                    padding: const EdgeInsets.only(left: 16.0, right: 16.0),
+                    padding: const EdgeInsets.only(
+                      left: 16.0,
+                      right: 16.0,
+                      bottom: 16.0,
+                    ),
                     child: Container(
                       width: double.infinity,
                       decoration: BoxDecoration(

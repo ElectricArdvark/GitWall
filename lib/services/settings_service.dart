@@ -219,4 +219,121 @@ class SettingsService {
       return {};
     }
   }
+
+  Future<String> _getBannedWallpapersPath() async {
+    final customLocation = await getCustomWallpaperLocation();
+    if (customLocation != null && customLocation.isNotEmpty) {
+      // Use custom location if set (same as cache service)
+      final cachePath = p.join(customLocation, 'GitWall', 'Wallpapers');
+      await Directory(cachePath).create(recursive: true);
+      return p.join(cachePath, 'banned_wallpapers.json');
+    } else {
+      // Default location (same as cache service)
+      final directory = await getApplicationSupportDirectory();
+      final cachePath = p.join(directory.path, 'GitWall', 'Wallpapers');
+      await Directory(cachePath).create(recursive: true);
+      return p.join(cachePath, 'banned_wallpapers.json');
+    }
+  }
+
+  Future<void> saveBannedWallpapers(
+    Map<String, List<Map<String, String>>> bannedWallpapers,
+  ) async {
+    try {
+      final filePath = await _getBannedWallpapersPath();
+      final file = File(filePath);
+      final serialized = jsonEncode(bannedWallpapers);
+      await file.writeAsString(serialized);
+    } catch (e) {
+      // Silently handle errors to avoid disrupting the app
+    }
+  }
+
+  Future<Map<String, List<Map<String, String>>>> getBannedWallpapers() async {
+    try {
+      final filePath = await _getBannedWallpapersPath();
+      final file = File(filePath);
+
+      if (!await file.exists()) {
+        return {};
+      }
+
+      final serialized = await file.readAsString();
+      if (serialized.isEmpty) {
+        return {};
+      }
+
+      final decoded = jsonDecode(serialized) as Map<String, dynamic>;
+      final result = decoded.map(
+        (key, value) => MapEntry(
+          key,
+          (value as List<dynamic>)
+              .map((item) => Map<String, String>.from(item))
+              .toList(),
+        ),
+      );
+      return result;
+    } catch (e) {
+      return {};
+    }
+  }
+
+  Future<String> _getFavouriteWallpapersPath() async {
+    final customLocation = await getCustomWallpaperLocation();
+    if (customLocation != null && customLocation.isNotEmpty) {
+      // Use custom location if set (same as cache service)
+      final cachePath = p.join(customLocation, 'GitWall', 'Wallpapers');
+      await Directory(cachePath).create(recursive: true);
+      return p.join(cachePath, 'favourite_wallpapers.json');
+    } else {
+      // Default location (same as cache service)
+      final directory = await getApplicationSupportDirectory();
+      final cachePath = p.join(directory.path, 'GitWall', 'Wallpapers');
+      await Directory(cachePath).create(recursive: true);
+      return p.join(cachePath, 'favourite_wallpapers.json');
+    }
+  }
+
+  Future<void> saveFavouriteWallpapers(
+    Map<String, List<Map<String, String>>> favouriteWallpapers,
+  ) async {
+    try {
+      final filePath = await _getFavouriteWallpapersPath();
+      final file = File(filePath);
+      final serialized = jsonEncode(favouriteWallpapers);
+      await file.writeAsString(serialized);
+    } catch (e) {
+      // Silently handle errors to avoid disrupting the app
+    }
+  }
+
+  Future<Map<String, List<Map<String, String>>>>
+  getFavouriteWallpapers() async {
+    try {
+      final filePath = await _getFavouriteWallpapersPath();
+      final file = File(filePath);
+
+      if (!await file.exists()) {
+        return {};
+      }
+
+      final serialized = await file.readAsString();
+      if (serialized.isEmpty) {
+        return {};
+      }
+
+      final decoded = jsonDecode(serialized) as Map<String, dynamic>;
+      final result = decoded.map(
+        (key, value) => MapEntry(
+          key,
+          (value as List<dynamic>)
+              .map((item) => Map<String, String>.from(item))
+              .toList(),
+        ),
+      );
+      return result;
+    } catch (e) {
+      return {};
+    }
+  }
 }

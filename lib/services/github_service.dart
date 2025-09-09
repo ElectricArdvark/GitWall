@@ -59,8 +59,9 @@ class GitHubService {
     String repoUrl,
     String resolution,
     String day,
-    int limit,
-  ) async {
+    int limit, {
+    int offset = 0,
+  }) async {
     String subPath;
     if (repoUrl == defaultRepoUrl && day.toLowerCase() == 'multi') {
       subPath = 'Multi/$resolution';
@@ -76,7 +77,7 @@ class GitHubService {
           );
         }).toList();
 
-    final limitedFiles = imageFiles.take(limit).toList();
+    final limitedFiles = imageFiles.skip(offset).take(limit).toList();
 
     final uri = Uri.parse(repoUrl);
     final pathSegments = uri.pathSegments.where((s) => s.isNotEmpty).toList();

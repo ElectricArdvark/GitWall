@@ -156,4 +156,74 @@ class CacheService {
     );
     return files.first;
   }
+
+  /// Gets all cached wallpapers for a specific tab based on unique ID pattern
+  Future<List<File>> getCachedWallpapersForTab(String tabIdentifier) async {
+    final cacheIndex = await _loadCacheIndex();
+    if (cacheIndex.isEmpty) return [];
+
+    final path = await _localPath;
+    List<File> matchingFiles = [];
+
+    for (final entry in cacheIndex.entries) {
+      final fileName = entry.value;
+
+      final file = File(p.join(path, fileName));
+      if (await file.exists()) {
+        matchingFiles.add(file);
+      }
+    }
+
+    return matchingFiles;
+  }
+
+  /// Gets a random cached wallpaper for a specific tab, excluding used ones
+  Future<File?> getRandomCachedWallpaperForTab(
+    String tabIdentifier,
+    List<String> usedWallpaperIds,
+  ) async {
+    final cachedFiles = await getCachedWallpapersForTab(tabIdentifier);
+    if (cachedFiles.isEmpty) return null;
+
+    // Load cache index once
+    final cacheIndex = await _loadCacheIndex();
+
+    // Filter out used wallpapers
+    final availableFiles =
+        cachedFiles.where((file) {
+          final fileName = file.path.split(Platform.pathSeparator).last;
+          // Find the unique ID for this file
+          final uniqueId =
+              cacheIndex.entries
+                  .firstWhere(
+                    (entry) => entry.value == fileName,
+                    orElse: () => MapEntry('', ''),
+                  )
+                  .key;
+
+          return uniqueId.isNotEmpty && !usedWallpaperIds.contains(uniqueId);
+        }).toList();
+
+    if (availableFiles.isEmpty) {
+      // All wallpapers are used, return a random one from all cached files
+      // This simulates the reset behavior from online cycling
+      cachedFiles.shuffle();
+      return cachedFiles.first;
+    }
+
+    // Return random available file
+    availableFiles.shuffle();
+    return availableFiles.first;
+  }
+
+  /// Gets the unique ID for a cached file based on its filename
+  Future<String?> getUniqueIdForCachedFile(String fileName) async {
+    final cacheIndex = await _loadCacheIndex();
+    return cacheIndex.entries
+        .firstWhere(
+          (entry) => entry.value == fileName,
+          orElse: () => MapEntry('', ''),
+        )
+        .key;
+  }
 }
