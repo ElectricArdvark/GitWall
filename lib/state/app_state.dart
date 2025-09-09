@@ -6,7 +6,6 @@ import 'package:gitwall/services/startup_service.dart';
 import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
 import '../constants.dart'; // Import constants.dart
-import '../services/cache_service.dart';
 import '../services/github_service.dart';
 import '../services/wallpaper_service.dart';
 import '../utils/helpers.dart';
@@ -15,7 +14,6 @@ class AppState extends ChangeNotifier {
   // Services
   final GitHubService _githubService = GitHubService();
   GitHubService get githubService => _githubService;
-  final CacheService _cacheService = CacheService();
   final WallpaperService _wallpaperService = WallpaperService();
   final SettingsService _settingsService = SettingsService();
   final StartupService _startupService = StartupService();
@@ -54,9 +52,6 @@ class AppState extends ChangeNotifier {
 
   String? _customWallpaperLocation;
   String? get customWallpaperLocation => _customWallpaperLocation;
-
-  bool _useCachedWhenNoInternet = true;
-  bool get useCachedWhenNoInternet => _useCachedWhenNoInternet;
 
   String _githubToken = "";
   String get githubToken => _githubToken;
@@ -113,8 +108,6 @@ class AppState extends ChangeNotifier {
     _hideStatus = await _settingsService.getHideStatus();
     _customWallpaperLocation =
         await _settingsService.getCustomWallpaperLocation();
-    _useCachedWhenNoInternet =
-        await _settingsService.getUseCachedWhenNoInternet();
     _githubToken = await _settingsService.getGithubToken();
     _autoShuffleEnabled = await _settingsService.getAutoShuffle();
     _closeToTrayEnabled = await _settingsService.isCloseToTrayEnabled();
@@ -123,7 +116,6 @@ class AppState extends ChangeNotifier {
     _bannedWallpapers = await _settingsService.getBannedWallpapers();
     _favouriteWallpapers = await _settingsService.getFavouriteWallpapers();
     _githubService.setToken(_githubToken);
-    _cacheService.setCustomWallpaperLocation(_customWallpaperLocation);
     updateAutostart();
     await updateWallpaper(isManual: false);
     _startScheduler();
@@ -179,12 +171,6 @@ class AppState extends ChangeNotifier {
   Future<void> toggleHideStatus(bool enabled) async {
     _hideStatus = enabled;
     await _settingsService.setHideStatus(enabled);
-    notifyListeners();
-  }
-
-  Future<void> toggleUseCachedWhenNoInternet(bool enabled) async {
-    _useCachedWhenNoInternet = enabled;
-    await _settingsService.setUseCachedWhenNoInternet(enabled);
     notifyListeners();
   }
 
@@ -248,8 +234,6 @@ class AppState extends ChangeNotifier {
       await _settingsService.saveCustomWallpaperLocation('');
       _customWallpaperLocation = null;
     }
-    // Update cache service with the new location
-    _cacheService.setCustomWallpaperLocation(_customWallpaperLocation);
     notifyListeners();
   }
 
@@ -281,9 +265,7 @@ class AppState extends ChangeNotifier {
     bool fromTimer = false,
   }) async {
     if (isManual) {
-      _updateStatus(
-        "Force refresh initiated - checking for cached wallpaper...",
-      );
+      _updateStatus("Force refresh initiated...");
       // On force refresh, don't change the wallpaper - just refresh the current one
       if (_currentWallpaperFile != null &&
           _currentWallpaperFile!.existsSync()) {
@@ -340,73 +322,18 @@ class AppState extends ChangeNotifier {
       final bool isInternetAvailable = await _isInternetAvailable();
 
       if (!isInternetAvailable) {
-        _updateStatus("No internet connection detected.");
+        _updateStatus(
+          "No internet connection detected. Cannot download wallpaper.",
+        );
+        return;
       }
 
       // Wallpaper source parameters are handled individually for each tab
 
       if (_activeTab == 'Weekly') {
         // For weekly, try to build the expected filename
-
-        if (!isInternetAvailable && _useCachedWhenNoInternet) {
-          for (final ext in supportedImageExtensions) {
-            final candidateFileName = '${day}_$resolution$ext';
-            final candidateUniqueId = _generateWallpaperUniqueId(
-              repoUrlToUse,
-              day,
-              resolution,
-              candidateFileName,
-            );
-            if (await _cacheService.isWallpaperCached(candidateUniqueId)) {
-              final cachedFile = await _cacheService.getCachedWallpaper(
-                candidateUniqueId,
-              );
-              if (cachedFile != null) {
-                _wallpaperService.setWallpaper(cachedFile.path);
-                _updateStatus(
-                  "Using cached image due to no internet: $candidateFileName.",
-                  file: cachedFile,
-                );
-                return;
-              }
-            }
-          }
-          // If no matching cache, use most recent
-          final mostRecent = await _cacheService.getMostRecentCachedWallpaper();
-          if (mostRecent != null) {
-            _wallpaperService.setWallpaper(mostRecent.path);
-            _updateStatus(
-              "Using cached image due to no internet.",
-              file: mostRecent,
-            );
-            return;
-          }
-          throw Exception("No cached wallpaper available and no internet.");
-        }
-
         for (final ext in supportedImageExtensions) {
           final candidateFileName = '${day}_$resolution$ext';
-          final candidateUniqueId = _generateWallpaperUniqueId(
-            repoUrlToUse,
-            day,
-            resolution,
-            candidateFileName,
-          );
-
-          // Check if already cached
-          if (await _cacheService.isWallpaperCached(candidateUniqueId)) {
-            final cachedFile = await _cacheService.getCachedWallpaper(
-              candidateUniqueId,
-            );
-            if (cachedFile != null) {
-              _wallpaperService.setWallpaper(cachedFile.path);
-              _updateStatus(
-                "Wallpaper is already cached: $candidateFileName.",
-                file: cachedFile,
-              );
-              return;
-            }
-          }
 
           _updateStatus("Downloading wallpaper for $day ($resolution)$ext...");
           try {
@@ -418,19 +345,25 @@ class AppState extends ChangeNotifier {
             );
 
             if (downloadResult.response.statusCode == 200) {
-              // Save with unique ID
-              savedFile = await _cacheService.saveWallpaperWithId(
-                downloadResult.uniqueId,
-                downloadResult.fileName,
-                downloadResult.response.bodyBytes,
-              );
+              // Create a temporary file for the wallpaper
+              final tempDir = await Directory.systemTemp.createTemp();
+              final fileName =
+                  '${DateTime.now().millisecondsSinceEpoch}_${downloadResult.fileName}';
+              savedFile = File('${tempDir.path}/$fileName');
+              await savedFile.writeAsBytes(downloadResult.response.bodyBytes);
               downloadedFileName = downloadResult.fileName;
 
               // Add this wallpaper to the used list for the current tab
               if (_activeTab == 'Multi' || _activeTab == 'Custom') {
                 final used = _usedWallpapers[_activeTab] ?? [];
-                if (!used.contains(downloadResult.uniqueId)) {
-                  used.add(downloadResult.uniqueId);
+                final uniqueId = _generateWallpaperUniqueId(
+                  repoUrlToUse,
+                  day,
+                  resolution,
+                  candidateFileName,
+                );
+                if (!used.contains(uniqueId)) {
+                  used.add(uniqueId);
                   _usedWallpapers[_activeTab] = used;
                   // Save immediately to ensure persistence
                   _settingsService.saveUsedWallpapers(_usedWallpapers);
@@ -449,70 +382,10 @@ class AppState extends ChangeNotifier {
         }
       } else {
         // For Multi and Custom repositories
-        _updateStatus("Checking wallpaper cache...");
+        _updateStatus("Downloading wallpaper...");
 
         if (_autoShuffleEnabled) {
           // Cycling logic
-          if (!isInternetAvailable && _useCachedWhenNoInternet) {
-            // Try to get cached wallpapers for this tab and shuffle through them
-            String tabIdentifier;
-            switch (_activeTab) {
-              case 'Multi':
-                tabIdentifier = 'multi';
-                break;
-              case 'Custom':
-                tabIdentifier = _customRepoUrl;
-                break;
-              default:
-                tabIdentifier = _activeTab.toLowerCase();
-            }
-
-            final used = _usedWallpapers[_activeTab] ?? [];
-            final cachedFile = await _cacheService
-                .getRandomCachedWallpaperForTab(tabIdentifier, used);
-
-            if (cachedFile != null) {
-              _wallpaperService.setWallpaper(cachedFile.path);
-              _updateStatus(
-                "Using cached image due to no internet.",
-                file: cachedFile,
-              );
-
-              // Add this wallpaper to used list
-              final fileName =
-                  cachedFile.path.split(Platform.pathSeparator).last;
-              final uniqueId = await _cacheService.getUniqueIdForCachedFile(
-                fileName,
-              );
-
-              if (uniqueId != null && uniqueId.isNotEmpty) {
-                // Check if this wallpaper was already in the used list
-                // If not, it means we got it from the "all used" case, so we should reset the list
-                if (!used.contains(uniqueId)) {
-                  // This was selected from the "all used" case, reset the used list
-                  used.clear();
-                }
-                used.add(uniqueId);
-                _usedWallpapers[_activeTab] = used;
-                await _settingsService.saveUsedWallpapers(_usedWallpapers);
-              }
-              return;
-            }
-
-            // Fallback to most recent if no tab-specific cached wallpapers
-            final mostRecent =
-                await _cacheService.getMostRecentCachedWallpaper();
-            if (mostRecent != null) {
-              _wallpaperService.setWallpaper(mostRecent.path);
-              _updateStatus(
-                "Using cached image due to no internet.",
-                file: mostRecent,
-              );
-              return;
-            }
-            throw Exception("No cached wallpaper available and no internet.");
-          }
-
           // Use cached URLs if available and not forcing refresh, otherwise fetch new ones
           List<String> urls;
           if (isManual ||
@@ -572,47 +445,6 @@ class AppState extends ChangeNotifier {
           }
         } else {
           // Original random logic
-          if (!isInternetAvailable && _useCachedWhenNoInternet) {
-            // Try to get cached wallpapers for this tab and pick one randomly
-            String tabIdentifier;
-            switch (_activeTab) {
-              case 'Multi':
-                tabIdentifier = 'multi';
-                break;
-              case 'Custom':
-                tabIdentifier = _customRepoUrl;
-                break;
-              default:
-                tabIdentifier = _activeTab.toLowerCase();
-            }
-
-            final used = _usedWallpapers[_activeTab] ?? [];
-            final cachedFile = await _cacheService
-                .getRandomCachedWallpaperForTab(tabIdentifier, used);
-
-            if (cachedFile != null) {
-              _wallpaperService.setWallpaper(cachedFile.path);
-              _updateStatus(
-                "Using cached image due to no internet.",
-                file: cachedFile,
-              );
-              return;
-            }
-
-            // Fallback to most recent if no tab-specific cached wallpapers
-            final mostRecent =
-                await _cacheService.getMostRecentCachedWallpaper();
-            if (mostRecent != null) {
-              _wallpaperService.setWallpaper(mostRecent.path);
-              _updateStatus(
-                "Using cached image due to no internet.",
-                file: mostRecent,
-              );
-              return;
-            }
-            throw Exception("No cached wallpaper available and no internet.");
-          }
-
           _updateStatus("Downloading wallpaper from $_activeTab repository...");
           downloadResult = await _githubService.downloadWallpaper(
             repoUrlToUse,
@@ -622,29 +454,12 @@ class AppState extends ChangeNotifier {
           );
 
           if (downloadResult.response.statusCode == 200) {
-            // Check if already cached
-            if (await _cacheService.isWallpaperCached(
-              downloadResult.uniqueId,
-            )) {
-              final cachedFile = await _cacheService.getCachedWallpaper(
-                downloadResult.uniqueId,
-              );
-              if (cachedFile != null) {
-                _wallpaperService.setWallpaper(cachedFile.path);
-                _updateStatus(
-                  "Wallpaper is already cached: ${downloadResult.fileName}.",
-                  file: cachedFile,
-                );
-                return;
-              }
-            }
-
-            // Save with unique ID
-            savedFile = await _cacheService.saveWallpaperWithId(
-              downloadResult.uniqueId,
-              downloadResult.fileName,
-              downloadResult.response.bodyBytes,
-            );
+            // Create a temporary file for the wallpaper
+            final tempDir = await Directory.systemTemp.createTemp();
+            final fileName =
+                '${DateTime.now().millisecondsSinceEpoch}_${downloadResult.fileName}';
+            savedFile = File('${tempDir.path}/$fileName');
+            await savedFile.writeAsBytes(downloadResult.response.bodyBytes);
             downloadedFileName = downloadResult.fileName;
           } else {
             throw Exception(
@@ -660,9 +475,6 @@ class AppState extends ChangeNotifier {
           "Success! Wallpaper downloaded: $downloadedFileName.",
           file: savedFile,
         );
-
-        // Cleanup old cache files
-        await _cacheService.cleanupOldCache();
       } else {
         throw Exception("Wallpaper not found or could not be downloaded.");
       }
@@ -720,11 +532,12 @@ class AppState extends ChangeNotifier {
           fileName,
         );
 
-        final savedFile = await _cacheService.saveWallpaperWithId(
-          uniqueId,
-          fileName,
-          response.bodyBytes,
-        );
+        // Create a temporary file for the wallpaper
+        final tempDir = await Directory.systemTemp.createTemp();
+        final tempFileName =
+            '${DateTime.now().millisecondsSinceEpoch}_${fileName}';
+        final savedFile = File('${tempDir.path}/$tempFileName');
+        await savedFile.writeAsBytes(response.bodyBytes);
 
         _wallpaperService.setWallpaper(savedFile.path);
         _updateStatus("Wallpaper set from URL: $fileName", file: savedFile);
@@ -882,13 +695,18 @@ class AppState extends ChangeNotifier {
         fileName,
       );
 
-      final banned = _bannedWallpapers[_activeTab] ?? [];
+      // Use 'Multi' key for both Multi and Custom tabs to share banned wallpapers
+      final tabKey =
+          (_activeTab == 'Multi' || _activeTab == 'Custom')
+              ? 'Multi'
+              : _activeTab;
+      final banned = _bannedWallpapers[tabKey] ?? [];
       final wallpaperEntry = {'uniqueId': uniqueId, 'url': url};
 
       // Check if already banned
       if (!banned.any((entry) => entry['uniqueId'] == uniqueId)) {
         banned.add(wallpaperEntry);
-        _bannedWallpapers[_activeTab] = banned;
+        _bannedWallpapers[tabKey] = banned;
         await _settingsService.saveBannedWallpapers(_bannedWallpapers);
 
         // Also remove from used list if it was there
@@ -916,11 +734,16 @@ class AppState extends ChangeNotifier {
     }
 
     try {
-      final banned = _bannedWallpapers[_activeTab] ?? [];
+      // Use 'Multi' key for both Multi and Custom tabs to share banned wallpapers
+      final tabKey =
+          (_activeTab == 'Multi' || _activeTab == 'Custom')
+              ? 'Multi'
+              : _activeTab;
+      final banned = _bannedWallpapers[tabKey] ?? [];
       final index = banned.indexWhere((entry) => entry['uniqueId'] == uniqueId);
       if (index != -1) {
         banned.removeAt(index);
-        _bannedWallpapers[_activeTab] = banned;
+        _bannedWallpapers[tabKey] = banned;
         await _settingsService.saveBannedWallpapers(_bannedWallpapers);
         _updateStatus("Wallpaper unbanned and will appear in previews");
         _bannedWallpapersChanged = true;
@@ -982,13 +805,18 @@ class AppState extends ChangeNotifier {
         fileName,
       );
 
-      final favourites = _favouriteWallpapers[_activeTab] ?? [];
+      // Use 'Multi' key for both Multi and Custom tabs to share favourite wallpapers
+      final tabKey =
+          (_activeTab == 'Multi' || _activeTab == 'Custom')
+              ? 'Multi'
+              : _activeTab;
+      final favourites = _favouriteWallpapers[tabKey] ?? [];
       final wallpaperEntry = {'uniqueId': uniqueId, 'url': url};
 
       // Check if already favourited
       if (!favourites.any((entry) => entry['uniqueId'] == uniqueId)) {
         favourites.add(wallpaperEntry);
-        _favouriteWallpapers[_activeTab] = favourites;
+        _favouriteWallpapers[tabKey] = favourites;
         await _settingsService.saveFavouriteWallpapers(_favouriteWallpapers);
         _updateStatus("Wallpaper added to favourites");
         notifyListeners();
@@ -1010,13 +838,18 @@ class AppState extends ChangeNotifier {
     }
 
     try {
-      final favourites = _favouriteWallpapers[_activeTab] ?? [];
+      // Use 'Multi' key for both Multi and Custom tabs to share favourite wallpapers
+      final tabKey =
+          (_activeTab == 'Multi' || _activeTab == 'Custom')
+              ? 'Multi'
+              : _activeTab;
+      final favourites = _favouriteWallpapers[tabKey] ?? [];
       final index = favourites.indexWhere(
         (entry) => entry['uniqueId'] == uniqueId,
       );
       if (index != -1) {
         favourites.removeAt(index);
-        _favouriteWallpapers[_activeTab] = favourites;
+        _favouriteWallpapers[tabKey] = favourites;
         await _settingsService.saveFavouriteWallpapers(_favouriteWallpapers);
         _updateStatus("Wallpaper removed from favourites");
         notifyListeners();

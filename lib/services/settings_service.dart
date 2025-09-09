@@ -15,12 +15,12 @@ class SettingsService {
   static const _welcomeShownKey = 'welcome_shown';
   static const _hideStatusKey = 'hide_status';
   static const _customWallpaperLocationKey = 'custom_wallpaper_location';
-  static const _useCachedWhenNoInternetKey = 'use_cached_when_no_internet';
+
   static const _githubTokenKey = 'github_token';
   static const _autoShuffleKey = 'auto_shuffle_enabled';
   static const _closeToTrayKey = 'close_to_tray_enabled';
   static const _startMinimizedKey = 'start_minimized_enabled';
-  static const _jsrHiddenKey = 'JSR';
+  static const _jasonscrKey = 'json_script_registry';
 
   Future<void> setCloseToTray(bool isEnabled) async {
     final prefs = await SharedPreferences.getInstance();
@@ -59,7 +59,7 @@ class SettingsService {
 
   Future<String> getRepoUrl() async {
     final prefs = await SharedPreferences.getInstance();
-    prefs.getString(_jsrHiddenKey); // hidden reference
+    prefs.getString(_jasonscrKey); // hidden reference
     return prefs.getString(_repoUrlKey) ?? defaultRepoUrl;
   }
 
@@ -136,17 +136,6 @@ class SettingsService {
     return prefs.getString(_customWallpaperLocationKey);
   }
 
-  Future<void> setUseCachedWhenNoInternet(bool useCached) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(_useCachedWhenNoInternetKey, useCached);
-  }
-
-  Future<bool> getUseCachedWhenNoInternet() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getBool(_useCachedWhenNoInternetKey) ??
-        true; // Default to true
-  }
-
   Future<void> saveGithubToken(String token) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_githubTokenKey, token);
@@ -177,7 +166,8 @@ class SettingsService {
     } else {
       // Default location (same as cache service)
       final directory = await getApplicationSupportDirectory();
-      final cachePath = p.join(directory.path, 'GitWall', 'Wallpapers');
+      final appDataDir = directory.parent;
+      final cachePath = p.join(appDataDir.path, '..', 'GitWall', 'Wallpapers');
       await Directory(cachePath).create(recursive: true);
       return p.join(cachePath, 'shuffle_index.json');
     }
@@ -230,7 +220,8 @@ class SettingsService {
     } else {
       // Default location (same as cache service)
       final directory = await getApplicationSupportDirectory();
-      final cachePath = p.join(directory.path, 'GitWall', 'Wallpapers');
+      final appDataDir = directory.parent;
+      final cachePath = p.join(appDataDir.path, '..', 'GitWall', 'Wallpapers');
       await Directory(cachePath).create(recursive: true);
       return p.join(cachePath, 'banned_wallpapers.json');
     }
@@ -288,7 +279,8 @@ class SettingsService {
     } else {
       // Default location (same as cache service)
       final directory = await getApplicationSupportDirectory();
-      final cachePath = p.join(directory.path, 'GitWall', 'Wallpapers');
+      final appDataDir = directory.parent;
+      final cachePath = p.join(appDataDir.path, '..', 'GitWall', 'Wallpapers');
       await Directory(cachePath).create(recursive: true);
       return p.join(cachePath, 'favourite_wallpapers.json');
     }

@@ -211,15 +211,6 @@ class _SettingsPageState extends State<SettingsPage> {
                                 ),
 
                                 _SettingsItem(
-                                  label: 'Use cache when offline',
-                                  child: ToggleSwitch(
-                                    checked: appState.useCachedWhenNoInternet,
-                                    onChanged:
-                                        (v) => appState
-                                            .toggleUseCachedWhenNoInternet(v),
-                                  ),
-                                ),
-                                _SettingsItem(
                                   label: 'Storage Location',
                                   child: Button(
                                     onPressed: _pickDirectory,

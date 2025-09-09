@@ -24,6 +24,8 @@ class _CustomPageState extends State<CustomPage> {
   String _errorMessage = '';
   late ScrollController _scrollController;
   bool _showLoadMoreButton = false;
+  bool _showFavouritesPreview = false;
+  bool _showBannedPreview = false;
 
   @override
   void initState() {
@@ -104,7 +106,7 @@ class _CustomPageState extends State<CustomPage> {
       );
 
       // Filter out banned wallpapers
-      final banned = widget.appState.bannedWallpapers['Custom'] ?? [];
+      final banned = widget.appState.bannedWallpapers['Multi'] ?? [];
       final filteredUrls =
           allUrls
               .where((url) {
@@ -137,6 +139,156 @@ class _CustomPageState extends State<CustomPage> {
   }
 
   void _loadMore() => _loadImages(10, offset: _imageUrls.length);
+
+  Widget _buildFavouritesPreview() {
+    final favourites = widget.appState.favouriteWallpapers['Multi'] ?? [];
+    if (favourites.isEmpty) {
+      return const Center(
+        child: Text(
+          'No favourite wallpapers yet.',
+          style: TextStyle(color: Colors.white),
+        ),
+      );
+    }
+    return GridView.builder(
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2,
+        childAspectRatio: 1.5,
+      ),
+      itemCount: favourites.length,
+      itemBuilder: (context, index) {
+        final favourite = favourites[index];
+        return Padding(
+          padding: const EdgeInsets.all(4.0),
+          child: GestureDetector(
+            onTap: () => widget.appState.setWallpaperForUrl(favourite['url']!),
+            onSecondaryTap: () {
+              showDialog(
+                context: context,
+                builder:
+                    (context) => ContentDialog(
+                      title: const Text('Unfavourite Wallpaper?'),
+                      content: const Text(
+                        'Would you like to remove this wallpaper from your favourites?',
+                      ),
+                      actions: [
+                        Button(
+                          onPressed: () {
+                            widget.appState.unfavouriteWallpaper(
+                              favourite['uniqueId']!,
+                            );
+                            Navigator.of(context).pop();
+                            setState(() {}); // Rebuild to reflect changes
+                          },
+                          child: const Text('Unfavourite'),
+                        ),
+                        Button(
+                          onPressed: () => Navigator.of(context).pop(),
+                          child: const Text('Cancel'),
+                        ),
+                      ],
+                    ),
+              );
+            },
+            child: Image.network(
+              favourite['url']!,
+              fit: BoxFit.cover,
+              loadingBuilder: (context, child, loadingProgress) {
+                if (loadingProgress == null) return child;
+                return const Center(
+                  child: Text(
+                    'Loading...',
+                    style: TextStyle(color: Colors.white),
+                  ),
+                );
+              },
+              errorBuilder: (context, error, stackTrace) {
+                return const Center(
+                  child: Icon(FluentIcons.error, color: Colors.white),
+                );
+              },
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildBannedPreview() {
+    final banned = widget.appState.bannedWallpapers['Multi'] ?? [];
+    if (banned.isEmpty) {
+      return const Center(
+        child: Text(
+          'No banned wallpapers yet.',
+          style: TextStyle(color: Colors.white),
+        ),
+      );
+    }
+    return GridView.builder(
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2,
+        childAspectRatio: 1.5,
+      ),
+      itemCount: banned.length,
+      itemBuilder: (context, index) {
+        final bannedWallpaper = banned[index];
+        return Padding(
+          padding: const EdgeInsets.all(4.0),
+          child: GestureDetector(
+            onTap:
+                () =>
+                    widget.appState.setWallpaperForUrl(bannedWallpaper['url']!),
+            onSecondaryTap: () {
+              showDialog(
+                context: context,
+                builder:
+                    (context) => ContentDialog(
+                      title: const Text('Unban Wallpaper?'),
+                      content: const Text(
+                        'Would you like to unban this wallpaper?',
+                      ),
+                      actions: [
+                        Button(
+                          onPressed: () {
+                            widget.appState.unbanWallpaper(
+                              bannedWallpaper['uniqueId']!,
+                            );
+                            Navigator.of(context).pop();
+                            setState(() {}); // Rebuild to reflect changes
+                          },
+                          child: const Text('Unban'),
+                        ),
+                        Button(
+                          onPressed: () => Navigator.of(context).pop(),
+                          child: const Text('Cancel'),
+                        ),
+                      ],
+                    ),
+              );
+            },
+            child: Image.network(
+              bannedWallpaper['url']!,
+              fit: BoxFit.cover,
+              loadingBuilder: (context, child, loadingProgress) {
+                if (loadingProgress == null) return child;
+                return const Center(
+                  child: Text(
+                    'Loading...',
+                    style: TextStyle(color: Colors.white),
+                  ),
+                );
+              },
+              errorBuilder: (context, error, stackTrace) {
+                return const Center(
+                  child: Icon(FluentIcons.error, color: Colors.white),
+                );
+              },
+            ),
+          ),
+        );
+      },
+    );
+  }
 
   Widget _buildPreviewContent() {
     if (widget.appState.customRepoUrl.isEmpty) {
@@ -180,7 +332,7 @@ class _CustomPageState extends State<CustomPage> {
       children: [
         Expanded(
           child: GridView.builder(
-            key: const ValueKey("Custom"),
+            key: const ValueKey("Multi"),
             controller: _scrollController,
             gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
               crossAxisCount: 2,
@@ -217,6 +369,15 @@ class _CustomPageState extends State<CustomPage> {
                                 await widget.appState.banWallpaper(urlToBan);
                               },
                               child: const Text('Ban Wallpaper'),
+                            ),
+                            Button(
+                              onPressed: () {
+                                widget.appState.favouriteWallpaper(
+                                  _imageUrls[index],
+                                );
+                                Navigator.of(context).pop();
+                              },
+                              child: const Text('Favourite'),
                             ),
                             Button(
                               onPressed: () => Navigator.of(context).pop(),
@@ -332,6 +493,35 @@ class _CustomPageState extends State<CustomPage> {
                                   ),
                                 ),
                           ),
+                          const SizedBox(width: 8),
+                          Button(
+                            onPressed: () {
+                              setState(() {
+                                _showFavouritesPreview =
+                                    !_showFavouritesPreview;
+                              });
+                            },
+                            child: Icon(
+                              _showFavouritesPreview
+                                  ? FluentIcons.heart_fill
+                                  : FluentIcons.heart,
+                              color: Colors.white,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Button(
+                            onPressed: () {
+                              setState(() {
+                                _showBannedPreview = !_showBannedPreview;
+                              });
+                            },
+                            child: Icon(
+                              _showBannedPreview
+                                  ? FluentIcons.block_contact
+                                  : FluentIcons.blocked,
+                              color: Colors.white,
+                            ),
+                          ),
                         ],
                       ),
                     ],
@@ -351,7 +541,12 @@ class _CustomPageState extends State<CustomPage> {
                         border: Border.all(color: const Color(0xFF2D3A3A)),
                         borderRadius: BorderRadius.circular(4.0),
                       ),
-                      child: _buildPreviewContent(),
+                      child:
+                          _showBannedPreview
+                              ? _buildBannedPreview()
+                              : _showFavouritesPreview
+                              ? _buildFavouritesPreview()
+                              : _buildPreviewContent(),
                     ),
                   ),
                 ),
