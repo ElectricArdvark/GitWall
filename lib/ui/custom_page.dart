@@ -83,8 +83,17 @@ class _CustomPageState extends State<CustomPage> {
     }
   }
 
-  void _fetchUrlsIfNeeded() {
+  void _fetchUrlsIfNeeded() async {
     if (widget.appState.customRepoUrl.isNotEmpty && _imageUrls.isEmpty) {
+      // Check internet connectivity first
+      final isInternetAvailable = await widget.appState.isInternetAvailable();
+      if (!isInternetAvailable) {
+        setState(() {
+          _hasError = true;
+          _errorMessage = 'No internet connection available';
+        });
+        return;
+      }
       _loadImages(10);
     }
   }
@@ -305,23 +314,66 @@ class _CustomPageState extends State<CustomPage> {
       );
     }
     if (_hasError) {
-      return Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              'Error loading images: $_errorMessage',
-              style: const TextStyle(color: Colors.white),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 8),
-            Button(
-              onPressed: () => _loadImages(10),
-              child: const Text('Retry'),
-            ),
-          ],
-        ),
-      );
+      // Special handling for no internet connection
+      if (_errorMessage.contains('No internet connection available')) {
+        return Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'No Internet Available',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 8),
+              Tooltip(
+                message: 'Switch to saved wallpapers',
+                child: Button(
+                  onPressed: () {
+                    // Navigate to cached page (Saved tab)
+                    widget.appState.setActiveTab('Saved');
+                  },
+                  child: const Text('Use Saved Wallpapers Instead'),
+                ),
+              ),
+              const SizedBox(height: 8),
+              Tooltip(
+                message: 'Retry loading images',
+                child: Button(
+                  onPressed: () => _fetchUrlsIfNeeded(),
+                  child: const Text('Retry'),
+                ),
+              ),
+            ],
+          ),
+        );
+      } else {
+        // Regular error handling
+        return Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'Error loading images: $_errorMessage',
+                style: const TextStyle(color: Colors.white),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 8),
+              Tooltip(
+                message: 'Retry loading images',
+                child: Button(
+                  onPressed: () => _loadImages(10),
+                  child: const Text('Retry'),
+                ),
+              ),
+            ],
+          ),
+        );
+      }
     }
     if (_imageUrls.isEmpty) {
       return const Center(
@@ -357,31 +409,40 @@ class _CustomPageState extends State<CustomPage> {
                             'What would you like to do with this wallpaper?',
                           ),
                           actions: [
-                            Button(
-                              onPressed: () async {
-                                Navigator.of(context).pop();
-                                final urlToBan = _imageUrls[index];
-                                // Remove from UI immediately
-                                setState(() {
-                                  _imageUrls.removeAt(index);
-                                });
-                                // Then ban in background
-                                await widget.appState.banWallpaper(urlToBan);
-                              },
-                              child: const Text('Ban Wallpaper'),
+                            Tooltip(
+                              message: 'Ban this wallpaper',
+                              child: Button(
+                                onPressed: () async {
+                                  Navigator.of(context).pop();
+                                  final urlToBan = _imageUrls[index];
+                                  // Remove from UI immediately
+                                  setState(() {
+                                    _imageUrls.removeAt(index);
+                                  });
+                                  // Then ban in background
+                                  await widget.appState.banWallpaper(urlToBan);
+                                },
+                                child: const Text('Ban Wallpaper'),
+                              ),
                             ),
-                            Button(
-                              onPressed: () {
-                                widget.appState.favouriteWallpaper(
-                                  _imageUrls[index],
-                                );
-                                Navigator.of(context).pop();
-                              },
-                              child: const Text('Favourite'),
+                            Tooltip(
+                              message: 'Add to favourites',
+                              child: Button(
+                                onPressed: () {
+                                  widget.appState.favouriteWallpaper(
+                                    _imageUrls[index],
+                                  );
+                                  Navigator.of(context).pop();
+                                },
+                                child: const Text('Favourite'),
+                              ),
                             ),
-                            Button(
-                              onPressed: () => Navigator.of(context).pop(),
-                              child: const Text('Cancel'),
+                            Tooltip(
+                              message: 'Cancel',
+                              child: Button(
+                                onPressed: () => Navigator.of(context).pop(),
+                                child: const Text('Cancel'),
+                              ),
                             ),
                           ],
                         );
@@ -417,7 +478,13 @@ class _CustomPageState extends State<CustomPage> {
         else if (_showLoadMoreButton)
           Padding(
             padding: const EdgeInsets.all(8.0),
-            child: Button(onPressed: _loadMore, child: const Text('Load More')),
+            child: Tooltip(
+              message: 'Load more wallpapers',
+              child: Button(
+                onPressed: _loadMore,
+                child: const Text('Load More'),
+              ),
+            ),
           ),
       ],
     );
@@ -468,58 +535,71 @@ class _CustomPageState extends State<CustomPage> {
                         children: [
                           Consumer<AppState>(
                             builder:
-                                (context, appState, child) => Button(
-                                  onPressed: () => appState.setNextWallpaper(),
-                                  child: const Icon(
-                                    FluentIcons.next,
-                                    color: Colors.white,
+                                (context, appState, child) => Tooltip(
+                                  message: 'Set next wallpaper',
+                                  child: Button(
+                                    onPressed:
+                                        () => appState.setNextWallpaper(),
+                                    child: const Icon(
+                                      FluentIcons.next,
+                                      color: Colors.white,
+                                    ),
                                   ),
                                 ),
                           ),
                           const SizedBox(width: 8),
                           Consumer<AppState>(
                             builder:
-                                (context, appState, child) => Button(
-                                  onPressed:
-                                      () => appState.toggleAutoShuffle(
-                                        !appState.autoShuffleEnabled,
-                                      ),
-                                  child: Icon(
-                                    appState.autoShuffleEnabled
-                                        ? FluentIcons
-                                            .repeat_all //autoshuffle is on
-                                        : FluentIcons.repeat_one,
-                                    color: Colors.white,
+                                (context, appState, child) => Tooltip(
+                                  message: 'Toggle auto shuffle',
+                                  child: Button(
+                                    onPressed:
+                                        () => appState.toggleAutoShuffle(
+                                          !appState.autoShuffleEnabled,
+                                        ),
+                                    child: Icon(
+                                      appState.autoShuffleEnabled
+                                          ? FluentIcons
+                                              .repeat_all //autoshuffle is on
+                                          : FluentIcons.repeat_one,
+                                      color: Colors.white,
+                                    ),
                                   ),
                                 ),
                           ),
                           const SizedBox(width: 8),
-                          Button(
-                            onPressed: () {
-                              setState(() {
-                                _showFavouritesPreview =
-                                    !_showFavouritesPreview;
-                              });
-                            },
-                            child: Icon(
-                              _showFavouritesPreview
-                                  ? FluentIcons.heart_fill
-                                  : FluentIcons.heart,
-                              color: Colors.white,
+                          Tooltip(
+                            message: 'Toggle favourites preview',
+                            child: Button(
+                              onPressed: () {
+                                setState(() {
+                                  _showFavouritesPreview =
+                                      !_showFavouritesPreview;
+                                });
+                              },
+                              child: Icon(
+                                _showFavouritesPreview
+                                    ? FluentIcons.heart_fill
+                                    : FluentIcons.heart,
+                                color: Colors.white,
+                              ),
                             ),
                           ),
                           const SizedBox(width: 8),
-                          Button(
-                            onPressed: () {
-                              setState(() {
-                                _showBannedPreview = !_showBannedPreview;
-                              });
-                            },
-                            child: Icon(
-                              _showBannedPreview
-                                  ? FluentIcons.block_contact
-                                  : FluentIcons.blocked,
-                              color: Colors.white,
+                          Tooltip(
+                            message: 'Toggle banned preview',
+                            child: Button(
+                              onPressed: () {
+                                setState(() {
+                                  _showBannedPreview = !_showBannedPreview;
+                                });
+                              },
+                              child: Icon(
+                                _showBannedPreview
+                                    ? FluentIcons.block_contact
+                                    : FluentIcons.blocked,
+                                color: Colors.white,
+                              ),
                             ),
                           ),
                         ],

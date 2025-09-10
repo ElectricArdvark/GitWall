@@ -212,12 +212,16 @@ class _SettingsPageState extends State<SettingsPage> {
 
                                 _SettingsItem(
                                   label: 'Storage Location',
-                                  child: Button(
-                                    onPressed: _pickDirectory,
-                                    child: Text(
-                                      appState.customWallpaperLocation ??
-                                          'Choose Folder',
-                                      overflow: TextOverflow.ellipsis,
+                                  child: Tooltip(
+                                    message:
+                                        'Choose custom wallpaper storage location',
+                                    child: Button(
+                                      onPressed: _pickDirectory,
+                                      child: Text(
+                                        appState.customWallpaperLocation ??
+                                            'Choose Folder',
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
                                     ),
                                   ),
                                 ),
@@ -248,16 +252,20 @@ class _SettingsPageState extends State<SettingsPage> {
                                             appState.setGithubToken(value),
                                   ),
                                 ),
-                                HyperlinkButton(
-                                  child: const Text(
-                                    'View Default GitWall Repository',
-                                  ),
-                                  onPressed:
-                                      () => launchUrl(
-                                        Uri.parse(
-                                          'https://github.com/ElectricArdvark/GitWall-WP',
+                                Tooltip(
+                                  message:
+                                      'Open the default GitWall repository in browser',
+                                  child: HyperlinkButton(
+                                    child: const Text(
+                                      'View Default GitWall Repository',
+                                    ),
+                                    onPressed:
+                                        () => launchUrl(
+                                          Uri.parse(
+                                            'https://github.com/ElectricArdvark/GitWall-WP',
+                                          ),
                                         ),
-                                      ),
+                                  ),
                                 ),
                               ],
                             ),

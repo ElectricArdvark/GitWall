@@ -7,6 +7,7 @@ import 'package:gitwall/ui/welcome_page.dart';
 import 'package:gitwall/ui/weekly_page.dart';
 import 'package:gitwall/ui/multi_page.dart';
 import 'package:gitwall/ui/custom_page.dart';
+import 'package:gitwall/ui/cached_page.dart';
 import '../state/app_state.dart';
 
 // Main home page widget that manages the overall app layout
@@ -100,6 +101,8 @@ class _HomePageState extends State<HomePage> {
         return MultiPage(appState: appState);
       case 'Custom':
         return CustomPage(appState: appState);
+      case 'Saved':
+        return CachedPage(appState: appState);
       default:
         return WeeklyPage(appState: appState);
     }
@@ -207,6 +210,17 @@ class LeftSideZone extends StatelessWidget {
                         onNavigationChanged(0);
                       },
                     ),
+                    _NavigationItem(
+                      icon: FluentIcons.download,
+                      text: 'Saved',
+                      isSelected:
+                          appState.activeTab == 'Saved' && navigationIndex == 0,
+                      onTap: () {
+                        appState.hideWelcomeInRightSide();
+                        appState.setActiveTab('Saved');
+                        onNavigationChanged(0);
+                      },
+                    ),
                   ],
                 ),
               ),
@@ -231,11 +245,15 @@ class LeftSideZone extends StatelessWidget {
                       ),
                     ),
                   const SizedBox(height: 8),
-                  SizedBox(
-                    width: double.infinity,
-                    child: FilledButton(
-                      onPressed: () => appState.updateWallpaper(isManual: true),
-                      child: const Text('Force Refresh'),
+                  Tooltip(
+                    message: 'Force refresh the wallpaper',
+                    child: SizedBox(
+                      width: double.infinity,
+                      child: FilledButton(
+                        onPressed:
+                            () => appState.updateWallpaper(isManual: true),
+                        child: const Text('Force Refresh'),
+                      ),
                     ),
                   ),
                 ],
@@ -263,24 +281,27 @@ class _NavigationItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 4.0),
-        padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
-        decoration: BoxDecoration(
-          color: isSelected ? const Color(0xFF2D3A3A) : null,
-          borderRadius: BorderRadius.circular(8.0),
-        ),
-        child: Row(
-          children: [
-            Icon(icon, color: const Color(0xFFFFFFFF), size: 20),
-            const SizedBox(width: 16),
-            Text(
-              text,
-              style: const TextStyle(fontSize: 16, color: Color(0xFFFFFFFF)),
-            ),
-          ],
+    return Tooltip(
+      message: text,
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          margin: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 4.0),
+          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+          decoration: BoxDecoration(
+            color: isSelected ? const Color(0xFF2D3A3A) : null,
+            borderRadius: BorderRadius.circular(8.0),
+          ),
+          child: Row(
+            children: [
+              Icon(icon, color: const Color(0xFFFFFFFF), size: 20),
+              const SizedBox(width: 16),
+              Text(
+                text,
+                style: const TextStyle(fontSize: 16, color: Color(0xFFFFFFFF)),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -309,9 +330,18 @@ class WindowButtons extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        MinimizeWindowButton(colors: buttonColors),
-        MaximizeWindowButton(colors: buttonColors),
-        CloseWindowButton(colors: closeButtonColors),
+        Tooltip(
+          message: 'Minimize',
+          child: MinimizeWindowButton(colors: buttonColors),
+        ),
+        Tooltip(
+          message: 'Maximize',
+          child: MaximizeWindowButton(colors: buttonColors),
+        ),
+        Tooltip(
+          message: 'Close',
+          child: CloseWindowButton(colors: closeButtonColors),
+        ),
       ],
     );
   }

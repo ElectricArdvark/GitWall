@@ -1,21 +1,28 @@
 import 'dart:convert';
+import 'dart:io';
 import 'dart:math';
 import 'package:http/http.dart' as http;
+import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 import '../constants.dart';
 
 class WallpaperDownloadResult {
-  final http.Response response;
+  final File file;
   final String fileName;
   final String uniqueId;
 
-  WallpaperDownloadResult(this.response, this.fileName, this.uniqueId);
+  WallpaperDownloadResult(this.file, this.fileName, this.uniqueId);
 }
 
 class GitHubService {
   String _githubToken = '';
+  BaseCacheManager? _cacheManager;
 
   void setToken(String token) {
     _githubToken = token;
+  }
+
+  void setCacheManager(BaseCacheManager cacheManager) {
+    _cacheManager = cacheManager;
   }
 
   /// Transforms a standard GitHub repo URL to a raw content URL for a specific file.
@@ -247,10 +254,11 @@ class GitHubService {
     );
 
     try {
-      final response = await http.get(Uri.parse(url));
-      return WallpaperDownloadResult(response, fileName, uniqueId);
+      final cacheManager = _cacheManager ?? DefaultCacheManager();
+      final file = await cacheManager.getSingleFile(url);
+      return WallpaperDownloadResult(file, fileName, uniqueId);
     } catch (e) {
-      throw Exception('Failed to connect or download image: $e');
+      throw Exception('Failed to download or cache image: $e');
     }
   }
 }

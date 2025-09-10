@@ -50,6 +50,10 @@ dependencies:
   file_picker: ^8.1.2
   package_info_plus: ^8.3.1
 
+  # Image caching
+  cached_network_image: ^3.3.1
+  flutter_cache_manager: ^3.3.1
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
