@@ -3,6 +3,8 @@ import 'dart:io';
 import 'package:fluent_ui/fluent_ui.dart';
 import 'package:gitwall/services/settings_service.dart';
 import 'package:gitwall/services/startup_service.dart';
+import 'package:gitwall/services/banned_wallpapers_service.dart';
+import 'package:gitwall/services/favourite_wallpapers_service.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 import 'package:intl/intl.dart';
@@ -19,6 +21,12 @@ class AppState extends ChangeNotifier {
   WallpaperService get wallpaperService => _wallpaperService;
   final SettingsService _settingsService = SettingsService();
   final StartupService _startupService = StartupService();
+  late final BannedWallpapersService _bannedWallpapersService;
+  BannedWallpapersService get bannedWallpapersService =>
+      _bannedWallpapersService;
+  late final FavouriteWallpapersService _favouriteWallpapersService;
+  FavouriteWallpapersService get favouriteWallpapersService =>
+      _favouriteWallpapersService;
 
   // Custom cache manager for wallpapers
   late BaseCacheManager _customCacheManager;
@@ -64,6 +72,9 @@ class AppState extends ChangeNotifier {
   bool _autoShuffleEnabled = true;
   bool get autoShuffleEnabled => _autoShuffleEnabled;
 
+  bool _useOnlyFavouritesEnabled = false;
+  bool get useOnlyFavouritesEnabled => _useOnlyFavouritesEnabled;
+
   bool _closeToTrayEnabled = true;
   bool get closeToTrayEnabled => _closeToTrayEnabled;
 
@@ -104,6 +115,10 @@ class AppState extends ChangeNotifier {
   }
 
   Future<void> _initialize() async {
+    // Initialize services
+    _bannedWallpapersService = BannedWallpapersService(_settingsService);
+    _favouriteWallpapersService = FavouriteWallpapersService(_settingsService);
+
     // Initialize custom cache manager
     final tempPath = Platform.environment['TEMP'];
     final cacheDir = Directory('$tempPath\\gitwall_cache');
@@ -131,11 +146,13 @@ class AppState extends ChangeNotifier {
         await _settingsService.getCustomWallpaperLocation();
     _githubToken = await _settingsService.getGithubToken();
     _autoShuffleEnabled = await _settingsService.getAutoShuffle();
+    _useOnlyFavouritesEnabled = await _settingsService.getUseOnlyFavourites();
     _closeToTrayEnabled = await _settingsService.isCloseToTrayEnabled();
     _startMinimizedEnabled = await _settingsService.isStartMinimizedEnabled();
     _usedWallpapers = await _settingsService.getUsedWallpapers();
-    _bannedWallpapers = await _settingsService.getBannedWallpapers();
-    _favouriteWallpapers = await _settingsService.getFavouriteWallpapers();
+    _bannedWallpapers = await _bannedWallpapersService.getBannedWallpapers();
+    _favouriteWallpapers =
+        await _favouriteWallpapersService.getFavouriteWallpapers();
 
     // Load the last weekly wallpaper path
     final lastWeeklyPath =
@@ -226,6 +243,12 @@ class AppState extends ChangeNotifier {
     _autoShuffleEnabled = enabled;
     await _settingsService.setAutoShuffle(enabled);
     _startScheduler();
+    notifyListeners();
+  }
+
+  Future<void> toggleUseOnlyFavourites(bool enabled) async {
+    _useOnlyFavouritesEnabled = enabled;
+    await _settingsService.setUseOnlyFavourites(enabled);
     notifyListeners();
   }
 
@@ -438,6 +461,17 @@ class AppState extends ChangeNotifier {
             urls = _cachedUrls[_activeTab]!;
           }
 
+          // If use only favourites is enabled, filter URLs to only include favourited ones
+          if (_useOnlyFavouritesEnabled) {
+            final tabKey =
+                (_activeTab == 'Multi' || _activeTab == 'Custom')
+                    ? 'Multi'
+                    : _activeTab;
+            final favourites = _favouriteWallpapers[tabKey] ?? [];
+            final favouriteUrls = favourites.map((f) => f['url']!).toSet();
+            urls = urls.where((url) => favouriteUrls.contains(url)).toList();
+          }
+
           final sortedUrls = urls..sort();
           final used = _usedWallpapers[_activeTab] ?? [];
           String? nextUrl;
@@ -633,6 +667,17 @@ class AppState extends ChangeNotifier {
         urls = _cachedUrls[_activeTab]!;
       }
 
+      // If use only favourites is enabled, filter URLs to only include favourited ones
+      if (_useOnlyFavouritesEnabled) {
+        final tabKey =
+            (_activeTab == 'Multi' || _activeTab == 'Custom')
+                ? 'Multi'
+                : _activeTab;
+        final favourites = _favouriteWallpapers[tabKey] ?? [];
+        final favouriteUrls = favourites.map((f) => f['url']!).toSet();
+        urls = urls.where((url) => favouriteUrls.contains(url)).toList();
+      }
+
       final sortedUrls = urls..sort();
       final used = _usedWallpapers[_activeTab] ?? [];
       final banned = _bannedWallpapers[_activeTab] ?? [];
@@ -728,14 +773,19 @@ class AppState extends ChangeNotifier {
           (_activeTab == 'Multi' || _activeTab == 'Custom')
               ? 'Multi'
               : _activeTab;
-      final banned = _bannedWallpapers[tabKey] ?? [];
-      final wallpaperEntry = {'uniqueId': uniqueId, 'url': url};
 
       // Check if already banned
-      if (!banned.any((entry) => entry['uniqueId'] == uniqueId)) {
-        banned.add(wallpaperEntry);
-        _bannedWallpapers[tabKey] = banned;
-        await _settingsService.saveBannedWallpapers(_bannedWallpapers);
+      if (!_bannedWallpapersService.isWallpaperBanned(
+        _bannedWallpapers,
+        tabKey,
+        uniqueId,
+      )) {
+        _bannedWallpapers = await _bannedWallpapersService.banWallpaper(
+          _bannedWallpapers,
+          tabKey,
+          uniqueId,
+          url,
+        );
 
         // Also remove from used list if it was there
         final used = _usedWallpapers[_activeTab] ?? [];
@@ -756,29 +806,33 @@ class AppState extends ChangeNotifier {
 
   /// Unbans a wallpaper by unique ID for the current tab
   Future<void> unbanWallpaper(String uniqueId) async {
-    if (_activeTab != 'Multi' && _activeTab != 'Custom') {
-      _updateStatus("Unban wallpaper only available for Multi and Custom tabs");
-      return;
-    }
-
     try {
-      // Use 'Multi' key for both Multi and Custom tabs to share banned wallpapers
-      final tabKey =
-          (_activeTab == 'Multi' || _activeTab == 'Custom')
-              ? 'Multi'
-              : _activeTab;
-      final banned = _bannedWallpapers[tabKey] ?? [];
-      final index = banned.indexWhere((entry) => entry['uniqueId'] == uniqueId);
-      if (index != -1) {
-        banned.removeAt(index);
-        _bannedWallpapers[tabKey] = banned;
-        await _settingsService.saveBannedWallpapers(_bannedWallpapers);
-        _updateStatus("Wallpaper unbanned and will appear in previews");
-        _bannedWallpapersChanged = true;
-        notifyListeners();
-      } else {
-        _updateStatus("Wallpaper is not banned");
+      // Check all tabs to find where this wallpaper is banned
+      String? tabKeyToUnban;
+      for (final entry in _bannedWallpapers.entries) {
+        final bannedInTab = entry.value;
+        if (bannedInTab.any((banned) => banned['uniqueId'] == uniqueId)) {
+          tabKeyToUnban = entry.key;
+          break;
+        }
       }
+
+      if (tabKeyToUnban == null) {
+        _updateStatus("Wallpaper is not currently banned");
+        return;
+      }
+
+      _bannedWallpapers = await _bannedWallpapersService.unbanWallpaper(
+        _bannedWallpapers,
+        tabKeyToUnban,
+        uniqueId,
+      );
+
+      _updateStatus(
+        "Wallpaper unbanned from $tabKeyToUnban tab and will appear in all previews",
+      );
+      _bannedWallpapersChanged = true;
+      notifyListeners();
     } catch (e) {
       _updateStatus("Error unbanning wallpaper: ${e.toString()}");
     }
@@ -786,8 +840,10 @@ class AppState extends ChangeNotifier {
 
   Future<void> saveStateBeforeClose() async {
     await _settingsService.saveUsedWallpapers(_usedWallpapers);
-    await _settingsService.saveBannedWallpapers(_bannedWallpapers);
-    await _settingsService.saveFavouriteWallpapers(_favouriteWallpapers);
+    await _bannedWallpapersService.saveBannedWallpapers(_bannedWallpapers);
+    await _favouriteWallpapersService.saveFavouriteWallpapers(
+      _favouriteWallpapers,
+    );
   }
 
   @override
@@ -838,14 +894,27 @@ class AppState extends ChangeNotifier {
           (_activeTab == 'Multi' || _activeTab == 'Custom')
               ? 'Multi'
               : _activeTab;
-      final favourites = _favouriteWallpapers[tabKey] ?? [];
-      final wallpaperEntry = {'uniqueId': uniqueId, 'url': url};
 
       // Check if already favourited
-      if (!favourites.any((entry) => entry['uniqueId'] == uniqueId)) {
-        favourites.add(wallpaperEntry);
-        _favouriteWallpapers[tabKey] = favourites;
-        await _settingsService.saveFavouriteWallpapers(_favouriteWallpapers);
+      if (!_favouriteWallpapersService.isWallpaperFavourited(
+        _favouriteWallpapers,
+        tabKey,
+        uniqueId,
+      )) {
+        // Cache the wallpaper to ensure it's available offline
+        try {
+          await _customCacheManager.getSingleFile(url);
+          _updateStatus("Wallpaper cached and added to favourites");
+        } catch (cacheError) {
+          _updateStatus(
+            "Warning: Failed to cache wallpaper, but added to favourites",
+          );
+          print('Error caching favourited wallpaper: $cacheError');
+        }
+
+        _favouriteWallpapers = await _favouriteWallpapersService
+            .favouriteWallpaper(_favouriteWallpapers, tabKey, uniqueId, url);
+
         _updateStatus("Wallpaper added to favourites");
         notifyListeners();
       } else {
@@ -871,19 +940,12 @@ class AppState extends ChangeNotifier {
           (_activeTab == 'Multi' || _activeTab == 'Custom')
               ? 'Multi'
               : _activeTab;
-      final favourites = _favouriteWallpapers[tabKey] ?? [];
-      final index = favourites.indexWhere(
-        (entry) => entry['uniqueId'] == uniqueId,
-      );
-      if (index != -1) {
-        favourites.removeAt(index);
-        _favouriteWallpapers[tabKey] = favourites;
-        await _settingsService.saveFavouriteWallpapers(_favouriteWallpapers);
-        _updateStatus("Wallpaper removed from favourites");
-        notifyListeners();
-      } else {
-        _updateStatus("Wallpaper is not in favourites");
-      }
+
+      _favouriteWallpapers = await _favouriteWallpapersService
+          .unfavouriteWallpaper(_favouriteWallpapers, tabKey, uniqueId);
+
+      _updateStatus("Wallpaper removed from favourites");
+      notifyListeners();
     } catch (e) {
       _updateStatus("Error unfavouriting wallpaper: ${e.toString()}");
     }

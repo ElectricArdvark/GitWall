@@ -476,9 +476,21 @@ class _MultiPageState extends State<MultiPage> {
                       ),
                       child:
                           _showBannedPreview
-                              ? _buildBannedPreview()
+                              ? widget.appState.bannedWallpapersService
+                                  .buildBannedPreview(
+                                    widget.appState.bannedWallpapers,
+                                    'Multi',
+                                    widget.appState,
+                                    setState,
+                                  )
                               : _showFavouritesPreview
-                              ? _buildFavouritesPreview()
+                              ? widget.appState.favouriteWallpapersService
+                                  .buildFavouritesPreview(
+                                    widget.appState.favouriteWallpapers,
+                                    'Multi',
+                                    widget.appState,
+                                    setState,
+                                  )
                               : _buildPreviewContent(),
                     ),
                   ),
@@ -488,156 +500,6 @@ class _MultiPageState extends State<MultiPage> {
           ),
         ],
       ),
-    );
-  }
-
-  Widget _buildFavouritesPreview() {
-    final favourites = widget.appState.favouriteWallpapers['Multi'] ?? [];
-    if (favourites.isEmpty) {
-      return const Center(
-        child: Text(
-          'No favourite wallpapers yet.',
-          style: TextStyle(color: Colors.white),
-        ),
-      );
-    }
-    return GridView.builder(
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        childAspectRatio: 1.5,
-      ),
-      itemCount: favourites.length,
-      itemBuilder: (context, index) {
-        final favourite = favourites[index];
-        return Padding(
-          padding: const EdgeInsets.all(4.0),
-          child: GestureDetector(
-            onTap: () => widget.appState.setWallpaperForUrl(favourite['url']!),
-            onSecondaryTap: () {
-              showDialog(
-                context: context,
-                builder:
-                    (context) => ContentDialog(
-                      title: const Text('Unfavourite Wallpaper?'),
-                      content: const Text(
-                        'Would you like to remove this wallpaper from your favourites?',
-                      ),
-                      actions: [
-                        Button(
-                          onPressed: () {
-                            widget.appState.unfavouriteWallpaper(
-                              favourite['uniqueId']!,
-                            );
-                            Navigator.of(context).pop();
-                            setState(() {}); // Rebuild to reflect changes
-                          },
-                          child: const Text('Unfavourite'),
-                        ),
-                        Button(
-                          onPressed: () => Navigator.of(context).pop(),
-                          child: const Text('Cancel'),
-                        ),
-                      ],
-                    ),
-              );
-            },
-            child: Image.network(
-              favourite['url']!,
-              fit: BoxFit.cover,
-              loadingBuilder: (context, child, loadingProgress) {
-                if (loadingProgress == null) return child;
-                return const Center(
-                  child: Text(
-                    'Loading...',
-                    style: TextStyle(color: Colors.white),
-                  ),
-                );
-              },
-              errorBuilder: (context, error, stackTrace) {
-                return const Center(
-                  child: Icon(FluentIcons.error, color: Colors.white),
-                );
-              },
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildBannedPreview() {
-    final banned = widget.appState.bannedWallpapers['Multi'] ?? [];
-    if (banned.isEmpty) {
-      return const Center(
-        child: Text(
-          'No banned wallpapers yet.',
-          style: TextStyle(color: Colors.white),
-        ),
-      );
-    }
-    return GridView.builder(
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        childAspectRatio: 1.5,
-      ),
-      itemCount: banned.length,
-      itemBuilder: (context, index) {
-        final bannedWallpaper = banned[index];
-        return Padding(
-          padding: const EdgeInsets.all(4.0),
-          child: GestureDetector(
-            onTap:
-                () =>
-                    widget.appState.setWallpaperForUrl(bannedWallpaper['url']!),
-            onSecondaryTap: () {
-              showDialog(
-                context: context,
-                builder:
-                    (context) => ContentDialog(
-                      title: const Text('Unban Wallpaper?'),
-                      content: const Text(
-                        'Would you like to unban this wallpaper?',
-                      ),
-                      actions: [
-                        Button(
-                          onPressed: () {
-                            widget.appState.unbanWallpaper(
-                              bannedWallpaper['uniqueId']!,
-                            );
-                            Navigator.of(context).pop();
-                            setState(() {}); // Rebuild to reflect changes
-                          },
-                          child: const Text('Unban'),
-                        ),
-                        Button(
-                          onPressed: () => Navigator.of(context).pop(),
-                          child: const Text('Cancel'),
-                        ),
-                      ],
-                    ),
-              );
-            },
-            child: Image.network(
-              bannedWallpaper['url']!,
-              fit: BoxFit.cover,
-              loadingBuilder: (context, child, loadingProgress) {
-                if (loadingProgress == null) return child;
-                return const Center(
-                  child: Text(
-                    'Loading...',
-                    style: TextStyle(color: Colors.white),
-                  ),
-                );
-              },
-              errorBuilder: (context, error, stackTrace) {
-                return const Center(
-                  child: Icon(FluentIcons.error, color: Colors.white),
-                );
-              },
-            ),
-          ),
-        );
-      },
     );
   }
 }

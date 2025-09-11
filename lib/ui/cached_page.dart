@@ -4,6 +4,9 @@ import 'package:flutter/material.dart' show Colors;
 import 'package:gitwall/ui/base_page.dart';
 import 'package:provider/provider.dart';
 import 'dart:io';
+import 'dart:convert';
+import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart';
 import '../state/app_state.dart';
 
 const rightbackgroundStartColor = Color(0xFFFFD500);
@@ -33,6 +36,26 @@ class _CachedPageState extends State<CachedPage> {
     super.initState();
     _scrollController = ScrollController()..addListener(_scrollListener);
     _loadCachedImages();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Refresh cached images when banned wallpapers change
+    if (widget.appState.bannedWallpapersChanged) {
+      widget.appState.resetBannedWallpapersChanged();
+      _loadCachedImages();
+    }
+  }
+
+  @override
+  void didUpdateWidget(CachedPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Also check for changes when widget updates
+    if (widget.appState.bannedWallpapersChanged) {
+      widget.appState.resetBannedWallpapersChanged();
+      _loadCachedImages();
+    }
   }
 
   @override
@@ -73,6 +96,29 @@ class _CachedPageState extends State<CachedPage> {
         await cacheDir.create(recursive: true);
       }
 
+      // Load cache metadata from gitwall_cache.json (stored in app data directory)
+      final appDataDir = await getApplicationSupportDirectory();
+      final cacheJsonFile = File('${appDataDir.path}\\gitwall_cache.json');
+      print('DEBUG: Looking for cache JSON file at: ${cacheJsonFile.path}');
+      Map<String, dynamic> cacheMetadata = {};
+      if (await cacheJsonFile.exists()) {
+        print('DEBUG: Found gitwall_cache.json file');
+        final cacheJson = await cacheJsonFile.readAsString();
+        final List<dynamic> cacheData = jsonDecode(cacheJson);
+        print('DEBUG: Loaded ${cacheData.length} cache entries from JSON');
+        // Convert to map by relativePath for easy lookup
+        cacheMetadata = Map.fromIterable(
+          cacheData,
+          key: (item) => item['relativePath'] as String,
+          value: (item) => item,
+        );
+        print('DEBUG: Cache metadata keys: ${cacheMetadata.keys.toList()}');
+      } else {
+        print(
+          'DEBUG: gitwall_cache.json file not found at: ${cacheJsonFile.path}',
+        );
+      }
+
       final files =
           cacheDir.listSync().where((file) => file is File).cast<File>();
       // Filter to only image files
@@ -81,8 +127,65 @@ class _CachedPageState extends State<CachedPage> {
             final extension = file.path.split('.').last.toLowerCase();
             return ['jpg', 'jpeg', 'png', 'gif', 'bmp'].contains(extension);
           }).toList();
+
+      print('DEBUG: Found ${imageFiles.length} image files in cache directory');
+      print(
+        'DEBUG: Image files: ${imageFiles.map((f) => p.basename(f.path)).toList()}',
+      );
+
+      // Get banned URLs from ALL tabs for direct comparison
+      final allBannedWallpapers = <Map<String, String>>[];
+      widget.appState.bannedWallpapers.forEach((tabKey, wallpapers) {
+        allBannedWallpapers.addAll(wallpapers);
+      });
+      final bannedUrls =
+          allBannedWallpapers.map((banned) => banned['url'] as String).toSet();
+
+      print(
+        'DEBUG: Total banned wallpapers across all tabs: ${allBannedWallpapers.length}',
+      );
+      for (final banned in allBannedWallpapers) {
+        print(
+          'DEBUG: Banned - URL: ${banned['url']} (from tab: ${widget.appState.bannedWallpapers.entries.firstWhere((entry) => entry.value.contains(banned), orElse: () => MapEntry('unknown', [])).key})',
+        );
+      }
+
+      // Filter out banned wallpapers by URL comparison
+      final filteredImages = <File>[];
+      for (final file in imageFiles) {
+        final fileName = p.basename(file.path);
+        final cacheEntry = cacheMetadata[fileName];
+
+        if (cacheEntry != null) {
+          final originalUrl = cacheEntry['url'] as String;
+
+          print('DEBUG: Processing cached file: $fileName');
+          print('DEBUG: Original URL: $originalUrl');
+
+          // Check if URL is in banned URLs set
+          final isBanned = bannedUrls.contains(originalUrl);
+
+          print('DEBUG: Is banned: $isBanned');
+
+          if (!isBanned) {
+            filteredImages.add(file);
+            print('DEBUG: Including file: $fileName');
+          } else {
+            print('DEBUG: Filtering out banned file: $fileName');
+          }
+        } else {
+          // Include files without metadata (fallback for compatibility)
+          print(
+            'DEBUG: No metadata found for file: $fileName, including as fallback',
+          );
+          filteredImages.add(file);
+        }
+      }
+
+      print('DEBUG: Final filtered images count: ${filteredImages.length}');
+
       setState(() {
-        _cachedImages = imageFiles;
+        _cachedImages = filteredImages;
         _isLoading = false;
       });
     } catch (e) {
@@ -214,295 +317,164 @@ class _CachedPageState extends State<CachedPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      color: const Color(0xFF1F2A29),
-      child: Column(
-        children: [
-          WindowTitleBarBox(
-            child: Row(
-              children: [Expanded(child: MoveWindow()), const WindowButtons()],
-            ),
-          ),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const SizedBox(height: 10),
-                const Padding(
-                  padding: EdgeInsets.only(left: 16.0, right: 16.0),
-                  child: SizedBox(
-                    height: 20,
-                    child: Center(
-                      child: Text(
-                        'Shows cached wallpapers from AppData\\Local\\Temp\\gitwall_cache.',
-                        style: TextStyle(color: Colors.white),
-                      ),
-                    ),
-                  ),
+    return Consumer<AppState>(
+      builder: (context, appState, child) {
+        // Check for banned wallpapers changes and refresh if needed
+        if (appState.bannedWallpapersChanged) {
+          appState.resetBannedWallpapersChanged();
+          // Use Future.delayed to avoid calling setState during build
+          Future.delayed(Duration.zero, () => _loadCachedImages());
+        }
+
+        return Container(
+          color: const Color(0xFF1F2A29),
+          child: Column(
+            children: [
+              WindowTitleBarBox(
+                child: Row(
+                  children: [
+                    Expanded(child: MoveWindow()),
+                    const WindowButtons(),
+                  ],
                 ),
-                const SizedBox(height: 10),
-                Padding(
-                  padding: const EdgeInsets.only(left: 16.0, right: 16.0),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text(
-                        'Cached Wallpaper Preview:',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
+              ),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const SizedBox(height: 10),
+                    const Padding(
+                      padding: EdgeInsets.only(left: 16.0, right: 16.0),
+                      child: SizedBox(
+                        height: 20,
+                        child: Center(
+                          child: Text(
+                            'Shows cached wallpapers from AppData\\Local\\Temp\\gitwall_cache.',
+                            style: TextStyle(color: Colors.white),
+                          ),
                         ),
                       ),
-                      Row(
+                    ),
+                    const SizedBox(height: 10),
+                    Padding(
+                      padding: const EdgeInsets.only(left: 16.0, right: 16.0),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Consumer<AppState>(
-                            builder:
-                                (context, appState, child) => Tooltip(
-                                  message: 'Set next wallpaper',
-                                  child: Button(
-                                    onPressed:
-                                        () => appState.setNextWallpaper(),
-                                    child: const Icon(
-                                      FluentIcons.next,
-                                      color: Colors.white,
-                                    ),
-                                  ),
-                                ),
-                          ),
-                          const SizedBox(width: 8),
-                          Consumer<AppState>(
-                            builder:
-                                (context, appState, child) => Tooltip(
-                                  message: 'Toggle auto shuffle',
-                                  child: Button(
-                                    onPressed:
-                                        () => appState.toggleAutoShuffle(
-                                          !appState.autoShuffleEnabled,
-                                        ),
-                                    child: Icon(
-                                      appState.autoShuffleEnabled
-                                          ? FluentIcons.repeat_all
-                                          : FluentIcons.repeat_one,
-                                      color: Colors.white,
-                                    ),
-                                  ),
-                                ),
-                          ),
-                          const SizedBox(width: 8),
-                          Tooltip(
-                            message: 'Toggle favourites preview',
-                            child: Button(
-                              onPressed: () {
-                                setState(() {
-                                  _showFavouritesPreview =
-                                      !_showFavouritesPreview;
-                                });
-                              },
-                              child: Icon(
-                                _showFavouritesPreview
-                                    ? FluentIcons.heart_fill
-                                    : FluentIcons.heart,
-                                color: Colors.white,
-                              ),
+                          const Text(
+                            'Cached Wallpaper Preview:',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
                             ),
                           ),
-                          const SizedBox(width: 8),
-                          Tooltip(
-                            message: 'Toggle banned preview',
-                            child: Button(
-                              onPressed: () {
-                                setState(() {
-                                  _showBannedPreview = !_showBannedPreview;
-                                });
-                              },
-                              child: Icon(
-                                _showBannedPreview
-                                    ? FluentIcons.block_contact
-                                    : FluentIcons.blocked,
-                                color: Colors.white,
+                          Row(
+                            children: [
+                              Tooltip(
+                                message: 'Set next wallpaper',
+                                child: Button(
+                                  onPressed: () => appState.setNextWallpaper(),
+                                  child: const Icon(
+                                    FluentIcons.next,
+                                    color: Colors.white,
+                                  ),
+                                ),
                               ),
-                            ),
+                              const SizedBox(width: 8),
+                              Tooltip(
+                                message: 'Toggle auto shuffle',
+                                child: Button(
+                                  onPressed:
+                                      () => appState.toggleAutoShuffle(
+                                        !appState.autoShuffleEnabled,
+                                      ),
+                                  child: Icon(
+                                    appState.autoShuffleEnabled
+                                        ? FluentIcons.repeat_all
+                                        : FluentIcons.repeat_one,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Tooltip(
+                                message: 'Toggle favourites preview',
+                                child: Button(
+                                  onPressed: () {
+                                    setState(() {
+                                      _showFavouritesPreview =
+                                          !_showFavouritesPreview;
+                                    });
+                                  },
+                                  child: Icon(
+                                    _showFavouritesPreview
+                                        ? FluentIcons.heart_fill
+                                        : FluentIcons.heart,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Tooltip(
+                                message: 'Toggle banned preview',
+                                child: Button(
+                                  onPressed: () {
+                                    setState(() {
+                                      _showBannedPreview = !_showBannedPreview;
+                                    });
+                                  },
+                                  child: Icon(
+                                    _showBannedPreview
+                                        ? FluentIcons.block_contact
+                                        : FluentIcons.blocked,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
                         ],
                       ),
-                    ],
-                  ),
+                    ),
+                    const SizedBox(height: 5),
+                    Expanded(
+                      child: Padding(
+                        padding: const EdgeInsets.only(
+                          left: 16.0,
+                          right: 16.0,
+                          bottom: 16.0,
+                        ),
+                        child: Container(
+                          width: double.infinity,
+                          decoration: BoxDecoration(
+                            border: Border.all(color: const Color(0xFF2D3A3A)),
+                            borderRadius: BorderRadius.circular(4.0),
+                          ),
+                          child:
+                              _showBannedPreview
+                                  ? appState.bannedWallpapersService
+                                      .buildBannedPreview(
+                                        appState.bannedWallpapers,
+                                        'Multi',
+                                        appState,
+                                        setState,
+                                      )
+                                  : _showFavouritesPreview
+                                  ? appState.favouriteWallpapersService
+                                      .buildFavouritesPreview(
+                                        appState.favouriteWallpapers,
+                                        'Multi',
+                                        appState,
+                                        setState,
+                                      )
+                                  : _buildPreviewContent(),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 5),
-                Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.only(
-                      left: 16.0,
-                      right: 16.0,
-                      bottom: 16.0,
-                    ),
-                    child: Container(
-                      width: double.infinity,
-                      decoration: BoxDecoration(
-                        border: Border.all(color: const Color(0xFF2D3A3A)),
-                        borderRadius: BorderRadius.circular(4.0),
-                      ),
-                      child:
-                          _showBannedPreview
-                              ? _buildBannedPreview()
-                              : _showFavouritesPreview
-                              ? _buildFavouritesPreview()
-                              : _buildPreviewContent(),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildFavouritesPreview() {
-    final favourites = widget.appState.favouriteWallpapers['Multi'] ?? [];
-    if (favourites.isEmpty) {
-      return const Center(
-        child: Text(
-          'No favourite wallpapers yet.',
-          style: TextStyle(color: Colors.white),
-        ),
-      );
-    }
-    return GridView.builder(
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        childAspectRatio: 1.5,
-      ),
-      itemCount: favourites.length,
-      itemBuilder: (context, index) {
-        final favourite = favourites[index];
-        return Padding(
-          padding: const EdgeInsets.all(4.0),
-          child: GestureDetector(
-            onTap: () => widget.appState.setWallpaperForUrl(favourite['url']!),
-            onSecondaryTap: () {
-              showDialog(
-                context: context,
-                builder:
-                    (context) => ContentDialog(
-                      title: const Text('Unfavourite Wallpaper?'),
-                      content: const Text(
-                        'Would you like to remove this wallpaper from your favourites?',
-                      ),
-                      actions: [
-                        Button(
-                          onPressed: () {
-                            widget.appState.unfavouriteWallpaper(
-                              favourite['uniqueId']!,
-                            );
-                            Navigator.of(context).pop();
-                            setState(() {}); // Rebuild to reflect changes
-                          },
-                          child: const Text('Unfavourite'),
-                        ),
-                        Button(
-                          onPressed: () => Navigator.of(context).pop(),
-                          child: const Text('Cancel'),
-                        ),
-                      ],
-                    ),
-              );
-            },
-            child: Image.network(
-              favourite['url']!,
-              fit: BoxFit.cover,
-              loadingBuilder: (context, child, loadingProgress) {
-                if (loadingProgress == null) return child;
-                return const Center(
-                  child: Text(
-                    'Loading...',
-                    style: TextStyle(color: Colors.white),
-                  ),
-                );
-              },
-              errorBuilder: (context, error, stackTrace) {
-                return const Center(
-                  child: Icon(FluentIcons.error, color: Colors.white),
-                );
-              },
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildBannedPreview() {
-    final banned = widget.appState.bannedWallpapers['Multi'] ?? [];
-    if (banned.isEmpty) {
-      return const Center(
-        child: Text(
-          'No banned wallpapers yet.',
-          style: TextStyle(color: Colors.white),
-        ),
-      );
-    }
-    return GridView.builder(
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        childAspectRatio: 1.5,
-      ),
-      itemCount: banned.length,
-      itemBuilder: (context, index) {
-        final bannedWallpaper = banned[index];
-        return Padding(
-          padding: const EdgeInsets.all(4.0),
-          child: GestureDetector(
-            onTap:
-                () =>
-                    widget.appState.setWallpaperForUrl(bannedWallpaper['url']!),
-            onSecondaryTap: () {
-              showDialog(
-                context: context,
-                builder:
-                    (context) => ContentDialog(
-                      title: const Text('Unban Wallpaper?'),
-                      content: const Text(
-                        'Would you like to unban this wallpaper?',
-                      ),
-                      actions: [
-                        Button(
-                          onPressed: () {
-                            widget.appState.unbanWallpaper(
-                              bannedWallpaper['uniqueId']!,
-                            );
-                            Navigator.of(context).pop();
-                            setState(() {}); // Rebuild to reflect changes
-                          },
-                          child: const Text('Unban'),
-                        ),
-                        Button(
-                          onPressed: () => Navigator.of(context).pop(),
-                          child: const Text('Cancel'),
-                        ),
-                      ],
-                    ),
-              );
-            },
-            child: Image.network(
-              bannedWallpaper['url']!,
-              fit: BoxFit.cover,
-              loadingBuilder: (context, child, loadingProgress) {
-                if (loadingProgress == null) return child;
-                return const Center(
-                  child: Text(
-                    'Loading...',
-                    style: TextStyle(color: Colors.white),
-                  ),
-                );
-              },
-              errorBuilder: (context, error, stackTrace) {
-                return const Center(
-                  child: Icon(FluentIcons.error, color: Colors.white),
-                );
-              },
-            ),
+              ),
+            ],
           ),
         );
       },
