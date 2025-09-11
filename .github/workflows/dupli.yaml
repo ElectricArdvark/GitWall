@@ -1,8 +1,6 @@
 name: Duplicate code detection
-
 on:
-  workflow_dispatch:    # <-- enables the “Run workflow” button
-  push:
+  pull_request:   # instead of push or workflow_dispatch
     branches: [ main ]
 
 jobs:
