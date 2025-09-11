@@ -575,6 +575,9 @@ class _CustomPageState extends State<CustomPage> {
                                 setState(() {
                                   _showFavouritesPreview =
                                       !_showFavouritesPreview;
+                                  if (_showFavouritesPreview) {
+                                    _showBannedPreview = false;
+                                  }
                                 });
                               },
                               child: Icon(
@@ -592,6 +595,9 @@ class _CustomPageState extends State<CustomPage> {
                               onPressed: () {
                                 setState(() {
                                   _showBannedPreview = !_showBannedPreview;
+                                  if (_showBannedPreview) {
+                                    _showFavouritesPreview = false;
+                                  }
                                 });
                               },
                               child: Icon(

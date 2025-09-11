@@ -66,6 +66,9 @@ class _WeeklyPageState extends State<WeeklyPage> {
                                 setState(() {
                                   _showFavouritesPreview =
                                       !_showFavouritesPreview;
+                                  if (_showFavouritesPreview) {
+                                    _showBannedPreview = false;
+                                  }
                                 });
                               },
                               child: Icon(
@@ -83,6 +86,9 @@ class _WeeklyPageState extends State<WeeklyPage> {
                               onPressed: () {
                                 setState(() {
                                   _showBannedPreview = !_showBannedPreview;
+                                  if (_showBannedPreview) {
+                                    _showFavouritesPreview = false;
+                                  }
                                 });
                               },
                               child: Icon(

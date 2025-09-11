@@ -136,6 +136,17 @@ class AppState extends ChangeNotifier {
     _usedWallpapers = await _settingsService.getUsedWallpapers();
     _bannedWallpapers = await _settingsService.getBannedWallpapers();
     _favouriteWallpapers = await _settingsService.getFavouriteWallpapers();
+
+    // Load the last weekly wallpaper path
+    final lastWeeklyPath =
+        await _settingsService.getCurrentWeeklyWallpaperPath();
+    if (lastWeeklyPath != null) {
+      final lastWeeklyFile = File(lastWeeklyPath);
+      if (await lastWeeklyFile.exists()) {
+        _currentWallpaperFile = lastWeeklyFile;
+      }
+    }
+
     _githubService.setToken(_githubToken);
     _githubService.setCacheManager(_customCacheManager);
     updateAutostart();
@@ -146,7 +157,8 @@ class AppState extends ChangeNotifier {
 
   void _startScheduler() {
     _timer?.cancel();
-    if (_autoShuffleEnabled) {
+    // Don't start timer for Weekly tab - shuffling should be off always
+    if (_autoShuffleEnabled && _activeTab != 'Weekly') {
       _timer = Timer.periodic(Duration(minutes: _wallpaperIntervalMinutes), (
         Timer timer,
       ) {
@@ -179,8 +191,10 @@ class AppState extends ChangeNotifier {
     await _settingsService.saveActiveTab(tab);
     notifyListeners();
     if (_activeTab == 'Weekly') {
-      await updateWallpaper(isManual: true);
+      await updateWallpaper(isManual: false);
     }
+    // Restart scheduler when tab changes to handle Weekly tab shuffling
+    _startScheduler();
   }
 
   Future<void> toggleAutostart(bool enabled) async {
@@ -519,6 +533,10 @@ class AppState extends ChangeNotifier {
     _status = "[$timestamp] $message";
     if (file != null) {
       _currentWallpaperFile = file;
+      // Save the current weekly wallpaper path for offline preview
+      if (_activeTab == 'Weekly') {
+        _settingsService.saveCurrentWeeklyWallpaperPath(file.path);
+      }
     }
     notifyListeners();
   }
@@ -542,6 +560,10 @@ class AppState extends ChangeNotifier {
 
       _wallpaperService.setWallpaper(file.path);
       _updateStatus("Wallpaper set from URL: $fileName", file: file);
+      // Save the current weekly wallpaper path for offline preview
+      if (_activeTab == 'Weekly') {
+        _settingsService.saveCurrentWeeklyWallpaperPath(file.path);
+      }
 
       // Add this wallpaper to the used list for the current tab
       if (_activeTab == 'Multi' || _activeTab == 'Custom') {

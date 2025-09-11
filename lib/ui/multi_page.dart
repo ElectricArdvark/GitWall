@@ -422,6 +422,9 @@ class _MultiPageState extends State<MultiPage> {
                                 setState(() {
                                   _showFavouritesPreview =
                                       !_showFavouritesPreview;
+                                  if (_showFavouritesPreview) {
+                                    _showBannedPreview = false;
+                                  }
                                 });
                               },
                               child: Icon(
@@ -439,6 +442,9 @@ class _MultiPageState extends State<MultiPage> {
                               onPressed: () {
                                 setState(() {
                                   _showBannedPreview = !_showBannedPreview;
+                                  if (_showBannedPreview) {
+                                    _showFavouritesPreview = false;
+                                  }
                                 });
                               },
                               child: Icon(

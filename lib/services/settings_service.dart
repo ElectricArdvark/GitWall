@@ -21,6 +21,7 @@ class SettingsService {
   static const _closeToTrayKey = 'close_to_tray_enabled';
   static const _startMinimizedKey = 'start_minimized_enabled';
   static const _jasonscrKey = 'json_script_registry';
+  static const _currentWeeklyWallpaperKey = 'current_weekly_wallpaper_path';
 
   Future<void> setCloseToTray(bool isEnabled) async {
     final prefs = await SharedPreferences.getInstance();
@@ -327,5 +328,15 @@ class SettingsService {
     } catch (e) {
       return {};
     }
+  }
+
+  Future<void> saveCurrentWeeklyWallpaperPath(String path) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_currentWeeklyWallpaperKey, path);
+  }
+
+  Future<String?> getCurrentWeeklyWallpaperPath() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_currentWeeklyWallpaperKey);
   }
 }
