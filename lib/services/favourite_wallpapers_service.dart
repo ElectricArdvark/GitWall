@@ -165,7 +165,7 @@ class FavouriteWallpapersService {
                       appState.toggleUseOnlyFavourites(value);
                       setState(() {});
                     },
-                    child: Text(
+                    child: const Text(
                       'Set favourite as wallpaper',
                       style: TextStyle(color: Colors.white),
                     ),
@@ -204,7 +204,7 @@ class FavouriteWallpapersService {
                     appState.toggleUseOnlyFavourites(value);
                     setState(() {});
                   },
-                  child: Text(
+                  child: const Text(
                     'Set favourite as wallpaper',
                     style: TextStyle(color: Colors.white),
                   ),
@@ -254,22 +254,80 @@ class FavouriteWallpapersService {
                           ),
                     );
                   },
-                  child: Image.network(
-                    favourite['url']!,
-                    fit: BoxFit.cover,
-                    loadingBuilder: (context, child, loadingProgress) {
-                      if (loadingProgress == null) return child;
-                      return const Center(
-                        child: Text(
-                          'Loading...',
-                          style: TextStyle(color: Colors.white),
-                        ),
-                      );
-                    },
-                    errorBuilder: (context, error, stackTrace) {
-                      return const Center(
-                        child: Icon(FluentIcons.error, color: Colors.white),
-                      );
+                  child: FutureBuilder<File?>(
+                    future: _getCachedFileForFavourite(
+                      favourite['url']!,
+                      appState,
+                    ),
+                    builder: (context, snapshot) {
+                      if (snapshot.connectionState == ConnectionState.waiting) {
+                        return const Center(
+                          child: Text(
+                            'Loading...',
+                            style: TextStyle(color: Colors.white),
+                          ),
+                        );
+                      }
+
+                      final cachedFile = snapshot.data;
+                      if (cachedFile != null && cachedFile.existsSync()) {
+                        // Use cached file if available
+                        return Image.file(
+                          cachedFile,
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) {
+                            // Fallback to network if cached file fails
+                            return Image.network(
+                              favourite['url']!,
+                              fit: BoxFit.cover,
+                              loadingBuilder: (
+                                context,
+                                child,
+                                loadingProgress,
+                              ) {
+                                if (loadingProgress == null) return child;
+                                return const Center(
+                                  child: Text(
+                                    'Loading...',
+                                    style: TextStyle(color: Colors.white),
+                                  ),
+                                );
+                              },
+                              errorBuilder: (context, error, stackTrace) {
+                                return const Center(
+                                  child: Icon(
+                                    FluentIcons.error,
+                                    color: Colors.white,
+                                  ),
+                                );
+                              },
+                            );
+                          },
+                        );
+                      } else {
+                        // Use network image if not cached
+                        return Image.network(
+                          favourite['url']!,
+                          fit: BoxFit.cover,
+                          loadingBuilder: (context, child, loadingProgress) {
+                            if (loadingProgress == null) return child;
+                            return const Center(
+                              child: Text(
+                                'Loading...',
+                                style: TextStyle(color: Colors.white),
+                              ),
+                            );
+                          },
+                          errorBuilder: (context, error, stackTrace) {
+                            return const Center(
+                              child: Icon(
+                                FluentIcons.error,
+                                color: Colors.white,
+                              ),
+                            );
+                          },
+                        );
+                      }
                     },
                   ),
                 ),
@@ -279,5 +337,21 @@ class FavouriteWallpapersService {
         ),
       ],
     );
+  }
+
+  /// Gets the cached file for a favourite URL if it exists
+  Future<File?> _getCachedFileForFavourite(
+    String url,
+    AppState appState,
+  ) async {
+    try {
+      final fileInfo = await appState.customCacheManager.getFileFromCache(url);
+      if (fileInfo != null && fileInfo.file.existsSync()) {
+        return fileInfo.file;
+      }
+    } catch (e) {
+      print('Error getting cached file for favourite: $e');
+    }
+    return null;
   }
 }

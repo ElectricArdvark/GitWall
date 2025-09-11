@@ -69,14 +69,31 @@ class GitHubService {
     int limit, {
     int offset = 0,
   }) async {
+    print('DEBUG: getImageUrls called with:');
+    print('DEBUG: repoUrl: $repoUrl');
+    print('DEBUG: resolution: $resolution');
+    print('DEBUG: day: $day');
+    print('DEBUG: limit: $limit');
+    print('DEBUG: offset: $offset');
+
     String subPath;
     if (repoUrl == defaultRepoUrl && day.toLowerCase() == 'multi') {
       subPath = 'Multi/$resolution';
+      print('DEBUG: Using subPath for Multi: $subPath');
     } else {
       subPath = ''; // Root for custom
+      print('DEBUG: Using root path for Custom');
     }
 
+    print(
+      'DEBUG: Fetching repository contents from: $repoUrl, subPath: $subPath',
+    );
     final allFiles = await _fetchRepositoryContents(repoUrl, subPath);
+    print('DEBUG: All files fetched: ${allFiles.length}');
+    for (var i = 0; i < allFiles.length && i < 10; i++) {
+      print('DEBUG: File $i: ${allFiles[i]}');
+    }
+
     final imageFiles =
         allFiles.where((file) {
           return supportedImageExtensions.any(
@@ -84,23 +101,36 @@ class GitHubService {
           );
         }).toList();
 
+    print('DEBUG: Image files found: ${imageFiles.length}');
+    for (var i = 0; i < imageFiles.length && i < 10; i++) {
+      print('DEBUG: Image file $i: ${imageFiles[i]}');
+    }
+
     final limitedFiles = imageFiles.skip(offset).take(limit).toList();
+    print(
+      'DEBUG: Limited files (offset: $offset, limit: $limit): ${limitedFiles.length}',
+    );
 
     final uri = Uri.parse(repoUrl);
     final pathSegments = uri.pathSegments.where((s) => s.isNotEmpty).toList();
     final user = pathSegments[0];
     final repo = pathSegments[1];
     final baseUrl = 'https://raw.githubusercontent.com/$user/$repo/main';
+    print('DEBUG: Base URL: $baseUrl');
 
     List<String> urls = [];
     for (final file in limitedFiles) {
+      String url;
       if (subPath.isNotEmpty) {
-        urls.add('$baseUrl/$subPath/$file');
+        url = '$baseUrl/$subPath/$file';
       } else {
-        urls.add('$baseUrl/$file');
+        url = '$baseUrl/$file';
       }
+      urls.add(url);
+      print('DEBUG: Generated URL: $url');
     }
 
+    print('DEBUG: Total URLs generated: ${urls.length}');
     return urls;
   }
 
@@ -108,6 +138,10 @@ class GitHubService {
     String repoUrl, [
     String? subPath,
   ]) async {
+    print('DEBUG: _fetchRepositoryContents called with:');
+    print('DEBUG: repoUrl: $repoUrl');
+    print('DEBUG: subPath: $subPath');
+
     final uri = Uri.parse(repoUrl);
     final pathSegments = uri.pathSegments.where((s) => s.isNotEmpty).toList();
 
@@ -125,28 +159,40 @@ class GitHubService {
       contentsUrl += '/$subPath';
     }
 
+    print('DEBUG: GitHub API URL: $contentsUrl');
+
     final headers =
         _githubToken.isNotEmpty
             ? <String, String>{'Authorization': 'token $_githubToken'}
             : <String, String>{};
 
+    print('DEBUG: Using GitHub token: ${_githubToken.isNotEmpty}');
+
     try {
+      print('DEBUG: Making HTTP request to GitHub API...');
       final response = await http.get(Uri.parse(contentsUrl), headers: headers);
+      print('DEBUG: GitHub API response status: ${response.statusCode}');
+
       if (response.statusCode == 200) {
         final List<dynamic> jsonResponse = json.decode(response.body);
+        print('DEBUG: JSON response contains ${jsonResponse.length} items');
+
         final files =
             jsonResponse
                 .where((item) => item['type'] == 'file')
                 .map<String>((item) => item['name'] as String)
                 .toList();
 
+        print('DEBUG: Found ${files.length} files');
         return files;
       } else {
+        print('DEBUG: GitHub API error response: ${response.body}');
         throw Exception(
           'Failed to fetch repository contents: ${response.statusCode} - $contentsUrl',
         );
       }
     } catch (e) {
+      print('DEBUG: Exception in _fetchRepositoryContents: $e');
       throw Exception('$e');
     }
   }

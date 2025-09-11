@@ -31,6 +31,9 @@ class AppState extends ChangeNotifier {
   // Custom cache manager for wallpapers
   late BaseCacheManager _customCacheManager;
 
+  // Public getter for cache manager
+  BaseCacheManager get customCacheManager => _customCacheManager;
+
   // State
   String _status = "Initializing...";
   String get status => _status;
@@ -445,31 +448,123 @@ class AppState extends ChangeNotifier {
           // Cycling logic
           // Use cached URLs if available and not forcing refresh, otherwise fetch new ones
           List<String> urls;
-          if (isManual ||
-              !_cachedUrls.containsKey(_activeTab) ||
-              _cachedUrls[_activeTab]!.isEmpty) {
-            // Fetch URLs only on manual refresh or app start
-            urls = await _githubService.getImageUrls(
-              repoUrlToUse,
-              resolution,
-              effectiveDay,
-              100,
-            ); // get all
-            _cachedUrls[_activeTab] = urls;
+          if (_useOnlyFavouritesEnabled) {
+            // When using only favourites, fetch from ALL repositories that have favourites
+            print(
+              'DEBUG: [updateWallpaper FAVOURITES MODE] Fetching URLs from all repositories with favourites...',
+            );
+            final allUrls = <String>[];
+
+            // Collect all unique repository URLs from favourites
+            final repoUrls = <String>{};
+            for (final tabFavourites in _favouriteWallpapers.values) {
+              for (final favourite in tabFavourites) {
+                if (favourite['url'] != null) {
+                  final uri = Uri.parse(favourite['url']!);
+                  // Extract repo URL from raw GitHub URL
+                  final pathSegments = uri.pathSegments;
+                  if (pathSegments.length >= 3) {
+                    final user = pathSegments[0];
+                    final repo = pathSegments[1];
+                    final repoUrl = 'https://github.com/$user/$repo';
+                    repoUrls.add(repoUrl);
+                  }
+                }
+              }
+            }
+
+            print(
+              'DEBUG: [updateWallpaper FAVOURITES MODE] Found ${repoUrls.length} repositories with favourites:',
+            );
+            for (var i = 0; i < repoUrls.length; i++) {
+              print(
+                'DEBUG: [updateWallpaper FAVOURITES MODE] Repo $i: ${repoUrls.elementAt(i)}',
+              );
+            }
+
+            // Fetch URLs from each repository - use 'multi' for all to get wallpapers from Multi folder
+            for (final repoUrl in repoUrls) {
+              try {
+                print(
+                  'DEBUG: [updateWallpaper FAVOURITES MODE] Fetching from: $repoUrl (using multi folder)',
+                );
+                final repoWallpaperUrls = await _githubService.getImageUrls(
+                  repoUrl,
+                  resolution,
+                  'multi', // Always use 'multi' to get wallpapers from Multi folder
+                  100,
+                );
+                allUrls.addAll(repoWallpaperUrls);
+                print(
+                  'DEBUG: [updateWallpaper FAVOURITES MODE] Added ${repoWallpaperUrls.length} URLs from $repoUrl',
+                );
+              } catch (e) {
+                print(
+                  'DEBUG: [updateWallpaper FAVOURITES MODE] Error fetching from $repoUrl: $e',
+                );
+              }
+            }
+
+            urls = allUrls;
+            print(
+              'DEBUG: [updateWallpaper FAVOURITES MODE] Total URLs from all repos: ${urls.length}',
+            );
           } else {
-            // Use cached URLs for timer-based updates
-            urls = _cachedUrls[_activeTab]!;
+            // Normal mode - fetch from current repository only
+            if (isManual ||
+                !_cachedUrls.containsKey(_activeTab) ||
+                _cachedUrls[_activeTab]!.isEmpty) {
+              // Fetch URLs only on manual refresh or app start
+              urls = await _githubService.getImageUrls(
+                repoUrlToUse,
+                resolution,
+                effectiveDay,
+                100,
+              ); // get all
+              _cachedUrls[_activeTab] = urls;
+            } else {
+              // Use cached URLs for timer-based updates
+              urls = _cachedUrls[_activeTab]!;
+            }
           }
 
-          // If use only favourites is enabled, filter URLs to only include favourited ones
+          // If use only favourites is enabled, filter URLs to only include favourited ones from ALL tabs
           if (_useOnlyFavouritesEnabled) {
-            final tabKey =
-                (_activeTab == 'Multi' || _activeTab == 'Custom')
-                    ? 'Multi'
-                    : _activeTab;
-            final favourites = _favouriteWallpapers[tabKey] ?? [];
-            final favouriteUrls = favourites.map((f) => f['url']!).toSet();
-            urls = urls.where((url) => favouriteUrls.contains(url)).toList();
+            // Collect favourite URLs from all tabs
+            final allFavouriteUrls = <String>{};
+            for (final tabFavourites in _favouriteWallpapers.values) {
+              for (final favourite in tabFavourites) {
+                if (favourite['url'] != null) {
+                  allFavouriteUrls.add(favourite['url']!);
+                }
+              }
+            }
+
+            print('DEBUG: [updateWallpaper] Favourite URLs collected:');
+            for (var i = 0; i < allFavouriteUrls.length; i++) {
+              print(
+                'DEBUG: [updateWallpaper] Favourite $i: ${allFavouriteUrls.elementAt(i)}',
+              );
+            }
+
+            print('DEBUG: [updateWallpaper] URLs before favourites filter:');
+            for (var i = 0; i < urls.length && i < 10; i++) {
+              print('DEBUG: [updateWallpaper] URL $i: ${urls[i]}');
+            }
+
+            urls = urls.where((url) => allFavouriteUrls.contains(url)).toList();
+
+            print(
+              'DEBUG: [updateWallpaper] After favourites filter: ${urls.length} URLs',
+            );
+            print(
+              'DEBUG: [updateWallpaper] Total favourite URLs: ${allFavouriteUrls.length}',
+            );
+
+            print('DEBUG: [updateWallpaper] Filtered URLs:');
+            for (var i = 0; i < urls.length; i++) {
+              print('DEBUG: [updateWallpaper] Filtered URL $i: ${urls[i]}');
+            }
           }
 
           final sortedUrls = urls..sort();
@@ -577,10 +672,14 @@ class AppState extends ChangeNotifier {
 
   /// Downloads and sets wallpaper from a given URL
   Future<void> setWallpaperForUrl(String url) async {
+    print('DEBUG: setWallpaperForUrl called with URL: $url');
     _updateStatus("Downloading wallpaper from URL...");
 
     try {
+      print('DEBUG: Attempting to download file from cache manager...');
       final file = await _customCacheManager.getSingleFile(url);
+      print('DEBUG: File downloaded successfully: ${file.path}');
+
       final uri = Uri.parse(url);
       final fileName = uri.pathSegments.last;
       final day = ''; // Not applicable
@@ -592,7 +691,10 @@ class AppState extends ChangeNotifier {
         fileName,
       );
 
+      print('DEBUG: Setting wallpaper with file path: ${file.path}');
       _wallpaperService.setWallpaper(file.path);
+      print('DEBUG: Wallpaper set successfully');
+
       _updateStatus("Wallpaper set from URL: $fileName", file: file);
       // Save the current weekly wallpaper path for offline preview
       if (_activeTab == 'Weekly') {
@@ -610,6 +712,8 @@ class AppState extends ChangeNotifier {
         }
       }
     } catch (e) {
+      print('DEBUG: Error in setWallpaperForUrl: ${e.toString()}');
+      print('DEBUG: Error stack trace: ${e}');
       _updateStatus("Error setting wallpaper: ${e.toString()}");
     }
   }
@@ -652,38 +756,141 @@ class AppState extends ChangeNotifier {
           return;
       }
 
+      print('DEBUG: Active tab: $_activeTab');
+      print('DEBUG: Repo URL to use: $repoUrlToUse');
+      print('DEBUG: Resolution: $resolution');
+      print('DEBUG: Effective day: $effectiveDay');
+
       // Use cached URLs if available, otherwise fetch new ones
       List<String> urls;
-      if (!_cachedUrls.containsKey(_activeTab) ||
-          _cachedUrls[_activeTab]!.isEmpty) {
-        urls = await _githubService.getImageUrls(
-          repoUrlToUse,
-          resolution,
-          effectiveDay,
-          100,
+      if (_useOnlyFavouritesEnabled) {
+        // When using only favourites, fetch from ALL repositories that have favourites
+        // IGNORE active tab constraints completely
+        print(
+          'DEBUG: [FAVOURITES MODE] Fetching URLs from all repositories with favourites (ignoring active tab constraints)...',
         );
-        _cachedUrls[_activeTab] = urls;
+        final allUrls = <String>[];
+
+        // Collect all unique repository URLs from favourites
+        final repoUrls = <String>{};
+        for (final tabFavourites in _favouriteWallpapers.values) {
+          for (final favourite in tabFavourites) {
+            if (favourite['url'] != null) {
+              final uri = Uri.parse(favourite['url']!);
+              // Extract repo URL from raw GitHub URL
+              final pathSegments = uri.pathSegments;
+              if (pathSegments.length >= 3) {
+                final user = pathSegments[0];
+                final repo = pathSegments[1];
+                final repoUrl = 'https://github.com/$user/$repo';
+                repoUrls.add(repoUrl);
+              }
+            }
+          }
+        }
+
+        print(
+          'DEBUG: [FAVOURITES MODE] Found ${repoUrls.length} repositories with favourites:',
+        );
+        for (var i = 0; i < repoUrls.length; i++) {
+          print('DEBUG: [FAVOURITES MODE] Repo $i: ${repoUrls.elementAt(i)}');
+        }
+
+        // Fetch URLs from each repository - use 'multi' for all to get wallpapers from Multi folder
+        for (final repoUrl in repoUrls) {
+          try {
+            print(
+              'DEBUG: [FAVOURITES MODE] Fetching from: $repoUrl (using multi folder)',
+            );
+            final repoWallpaperUrls = await _githubService.getImageUrls(
+              repoUrl,
+              resolution,
+              'multi', // Always use 'multi' to get wallpapers from Multi folder
+              100,
+            );
+            allUrls.addAll(repoWallpaperUrls);
+            print(
+              'DEBUG: [FAVOURITES MODE] Added ${repoWallpaperUrls.length} URLs from $repoUrl',
+            );
+          } catch (e) {
+            print('DEBUG: [FAVOURITES MODE] Error fetching from $repoUrl: $e');
+          }
+        }
+
+        urls = allUrls;
+        print(
+          'DEBUG: [FAVOURITES MODE] Total URLs from all repos: ${urls.length}',
+        );
       } else {
-        urls = _cachedUrls[_activeTab]!;
+        // Normal mode - fetch from current repository only
+        if (!_cachedUrls.containsKey(_activeTab) ||
+            _cachedUrls[_activeTab]!.isEmpty) {
+          print('DEBUG: Fetching new URLs from GitHub...');
+          urls = await _githubService.getImageUrls(
+            repoUrlToUse,
+            resolution,
+            effectiveDay,
+            100,
+          );
+          print('DEBUG: Fetched ${urls.length} URLs from GitHub');
+          _cachedUrls[_activeTab] = urls;
+        } else {
+          urls = _cachedUrls[_activeTab]!;
+          print('DEBUG: Using ${urls.length} cached URLs');
+        }
       }
 
-      // If use only favourites is enabled, filter URLs to only include favourited ones
+      print('DEBUG: Total URLs before filtering: ${urls.length}');
+      for (var i = 0; i < urls.length && i < 5; i++) {
+        print('DEBUG: URL $i: ${urls[i]}');
+      }
+
+      // If use only favourites is enabled, filter URLs to only include favourited ones from ALL tabs
       if (_useOnlyFavouritesEnabled) {
-        final tabKey =
-            (_activeTab == 'Multi' || _activeTab == 'Custom')
-                ? 'Multi'
-                : _activeTab;
-        final favourites = _favouriteWallpapers[tabKey] ?? [];
-        final favouriteUrls = favourites.map((f) => f['url']!).toSet();
-        urls = urls.where((url) => favouriteUrls.contains(url)).toList();
+        // Collect favourite URLs from all tabs
+        final allFavouriteUrls = <String>{};
+        for (final tabFavourites in _favouriteWallpapers.values) {
+          for (final favourite in tabFavourites) {
+            if (favourite['url'] != null) {
+              allFavouriteUrls.add(favourite['url']!);
+            }
+          }
+        }
+
+        print('DEBUG: Favourite URLs collected:');
+        for (var i = 0; i < allFavouriteUrls.length; i++) {
+          print('DEBUG: Favourite $i: ${allFavouriteUrls.elementAt(i)}');
+        }
+
+        print('DEBUG: URLs before favourites filter:');
+        for (var i = 0; i < urls.length && i < 10; i++) {
+          print('DEBUG: URL $i: ${urls[i]}');
+        }
+
+        urls = urls.where((url) => allFavouriteUrls.contains(url)).toList();
+        print('DEBUG: After favourites filter (all tabs): ${urls.length} URLs');
+        print(
+          'DEBUG: Total favourite URLs across all tabs: ${allFavouriteUrls.length}',
+        );
+
+        print('DEBUG: Filtered URLs:');
+        for (var i = 0; i < urls.length; i++) {
+          print('DEBUG: Filtered URL $i: ${urls[i]}');
+        }
       }
 
       final sortedUrls = urls..sort();
       final used = _usedWallpapers[_activeTab] ?? [];
       final banned = _bannedWallpapers[_activeTab] ?? [];
+
+      print('DEBUG: Used wallpapers count: ${used.length}');
+      print('DEBUG: Banned wallpapers count: ${banned.length}');
+      print('DEBUG: Sorted URLs count: ${sortedUrls.length}');
+
       String? nextUrl;
 
       // Find the next unused and unbanned wallpaper
+      print('DEBUG: Looking for next unused/unbanned wallpaper...');
       for (final url in sortedUrls) {
         final uri = Uri.parse(url);
         final fileName = uri.pathSegments.last;
@@ -694,15 +901,25 @@ class AppState extends ChangeNotifier {
           fileName,
         );
         final isBanned = banned.any((entry) => entry['uniqueId'] == uniqueId);
+        final isUsed = used.contains(uniqueId);
+
+        print('DEBUG: Checking URL: $url');
+        print('DEBUG: FileName: $fileName, UniqueId: $uniqueId');
+        print('DEBUG: IsUsed: $isUsed, IsBanned: $isBanned');
+
         if (!used.contains(uniqueId) && !isBanned) {
           nextUrl = url;
           used.add(uniqueId);
+          print('DEBUG: Selected next URL: $nextUrl');
           break;
+        } else {
+          print('DEBUG: Skipping URL - already used or banned');
         }
       }
 
       // If no unused wallpaper found, reset the cycle but skip banned ones
       if (nextUrl == null && sortedUrls.isNotEmpty) {
+        print('DEBUG: No unused wallpaper found, resetting cycle...');
         used.clear();
         for (final url in sortedUrls) {
           final uri = Uri.parse(url);
@@ -714,9 +931,11 @@ class AppState extends ChangeNotifier {
             fileName,
           );
           final isBanned = banned.any((entry) => entry['uniqueId'] == uniqueId);
+          print('DEBUG: Reset cycle - checking URL: $url, IsBanned: $isBanned');
           if (!isBanned) {
             nextUrl = url;
             used.add(uniqueId);
+            print('DEBUG: After reset, selected URL: $nextUrl');
             break;
           }
         }
@@ -726,8 +945,10 @@ class AppState extends ChangeNotifier {
       await _settingsService.saveUsedWallpapers(_usedWallpapers);
 
       if (nextUrl != null) {
+        print('DEBUG: Final selected URL for wallpaper: $nextUrl');
         await setWallpaperForUrl(nextUrl);
       } else {
+        print('DEBUG: No wallpapers available after all filtering');
         _updateStatus("No wallpapers available");
       }
     } catch (e) {
@@ -1015,15 +1236,121 @@ class AppState extends ChangeNotifier {
         return;
       }
 
+      // If use only favourites is enabled, filter cached images to only include favourited ones
+      List<File> filteredImageFiles = imageFiles;
+      if (_useOnlyFavouritesEnabled) {
+        print(
+          'DEBUG: [SAVED TAB FAVOURITES MODE] Filtering cached images to favourites only',
+        );
+
+        // Collect all favourite URLs from all tabs
+        final allFavouriteUrls = <String>{};
+        for (final tabFavourites in _favouriteWallpapers.values) {
+          for (final favourite in tabFavourites) {
+            if (favourite['url'] != null) {
+              allFavouriteUrls.add(favourite['url']!);
+            }
+          }
+        }
+
+        print(
+          'DEBUG: [SAVED TAB FAVOURITES MODE] Total favourite URLs: ${allFavouriteUrls.length}',
+        );
+
+        if (allFavouriteUrls.isEmpty) {
+          print('DEBUG: [SAVED TAB FAVOURITES MODE] No favourite URLs found');
+          _updateStatus("No favourited wallpapers found");
+          return;
+        }
+
+        // First, ensure all favourite wallpapers are cached
+        print(
+          'DEBUG: [SAVED TAB FAVOURITES MODE] Ensuring all favourites are cached...',
+        );
+        for (final favouriteUrl in allFavouriteUrls) {
+          try {
+            // Check if already cached
+            final existingFileInfo = await _customCacheManager.getFileFromCache(
+              favouriteUrl,
+            );
+            if (existingFileInfo == null ||
+                !existingFileInfo.file.existsSync()) {
+              print(
+                'DEBUG: [SAVED TAB FAVOURITES MODE] Downloading and caching: $favouriteUrl',
+              );
+              // Download and cache the wallpaper
+              await _customCacheManager.getSingleFile(favouriteUrl);
+              print(
+                'DEBUG: [SAVED TAB FAVOURITES MODE] Successfully cached: $favouriteUrl',
+              );
+            } else {
+              print(
+                'DEBUG: [SAVED TAB FAVOURITES MODE] Already cached: $favouriteUrl',
+              );
+            }
+          } catch (e) {
+            print(
+              'DEBUG: [SAVED TAB FAVOURITES MODE] Error caching $favouriteUrl: $e',
+            );
+          }
+        }
+
+        // Now get all cached favourite files
+        final favouriteCachedFiles = <File>[];
+        for (final favouriteUrl in allFavouriteUrls) {
+          try {
+            print(
+              'DEBUG: [SAVED TAB FAVOURITES MODE] Getting cached file for URL: $favouriteUrl',
+            );
+            // Get the cached file info for this URL
+            final fileInfo = await _customCacheManager.getFileFromCache(
+              favouriteUrl,
+            );
+
+            if (fileInfo != null && fileInfo.file.existsSync()) {
+              print(
+                'DEBUG: [SAVED TAB FAVOURITES MODE] Found cached file: ${fileInfo.file.path}',
+              );
+              favouriteCachedFiles.add(fileInfo.file);
+            } else {
+              print(
+                'DEBUG: [SAVED TAB FAVOURITES MODE] Still no cached file found for URL: $favouriteUrl',
+              );
+            }
+          } catch (e) {
+            print(
+              'DEBUG: [SAVED TAB FAVOURITES MODE] Error getting cached file for $favouriteUrl: $e',
+            );
+          }
+        }
+
+        print(
+          'DEBUG: [SAVED TAB FAVOURITES MODE] Found ${favouriteCachedFiles.length} cached favourite files',
+        );
+
+        if (favouriteCachedFiles.isEmpty) {
+          print(
+            'DEBUG: [SAVED TAB FAVOURITES MODE] No favourite wallpapers could be cached',
+          );
+          _updateStatus("No favourited wallpapers available");
+          return;
+        }
+
+        filteredImageFiles = favouriteCachedFiles;
+        print(
+          'DEBUG: [SAVED TAB FAVOURITES MODE] Using ${filteredImageFiles.length} favourited cached files',
+        );
+      }
+
       // Sort files by name for consistent cycling
-      imageFiles.sort((a, b) => a.path.compareTo(b.path));
+      filteredImageFiles.sort((a, b) => a.path.compareTo(b.path));
 
       // Get used wallpapers for Saved tab
       final used = _usedWallpapers['Saved'] ?? [];
       File? nextFile;
 
       // Find the next unused cached wallpaper
-      for (final file in imageFiles) {
+      for (final file in filteredImageFiles) {
         final fileName = file.path.split(Platform.pathSeparator).last;
         final uniqueId = _generateWallpaperUniqueId(
           'cached', // Use 'cached' as repo identifier
@@ -1040,9 +1367,9 @@ class AppState extends ChangeNotifier {
       }
 
       // If no unused wallpaper found, reset the cycle
-      if (nextFile == null && imageFiles.isNotEmpty) {
+      if (nextFile == null && filteredImageFiles.isNotEmpty) {
         used.clear();
-        nextFile = imageFiles.first;
+        nextFile = filteredImageFiles.first;
         final fileName = nextFile.path.split(Platform.pathSeparator).last;
         final uniqueId = _generateWallpaperUniqueId(
           'cached',

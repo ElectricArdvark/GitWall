@@ -1,7 +1,6 @@
-import 'package:bitsdojo_window/bitsdojo_window.dart';
 import 'package:fluent_ui/fluent_ui.dart' hide Colors;
 import 'package:flutter/material.dart' show Colors;
-import 'package:gitwall/ui/base_page.dart';
+import 'package:gitwall/ui/common_widgets.dart';
 import '../state/app_state.dart';
 
 class WeeklyPage extends StatefulWidget {
@@ -18,132 +17,32 @@ class _WeeklyPageState extends State<WeeklyPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      color: const Color(0xFF1F2A29),
-      child: Column(
-        children: [
-          WindowTitleBarBox(
-            child: Row(
-              children: [Expanded(child: MoveWindow()), const WindowButtons()],
-            ),
-          ),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const SizedBox(height: 10),
-                const Padding(
-                  padding: EdgeInsets.only(left: 16.0, right: 16.0),
-                  child: SizedBox(
-                    height: 20,
-                    child: Center(
-                      child: Text(
-                        'Uses the default repository for weekly wallpapers.',
-                        style: TextStyle(color: Colors.white),
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 10),
-                Padding(
-                  padding: const EdgeInsets.only(left: 16.0, right: 16.0),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text(
-                        'Wallpaper Preview:',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                        ),
-                      ),
-                      Row(
-                        children: [
-                          Tooltip(
-                            message: 'Toggle favourites preview',
-                            child: Button(
-                              onPressed: () {
-                                setState(() {
-                                  _showFavouritesPreview =
-                                      !_showFavouritesPreview;
-                                  if (_showFavouritesPreview) {
-                                    _showBannedPreview = false;
-                                  }
-                                });
-                              },
-                              child: Icon(
-                                _showFavouritesPreview
-                                    ? FluentIcons.heart_fill
-                                    : FluentIcons.heart,
-                                color: Colors.white,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Tooltip(
-                            message: 'Toggle banned preview',
-                            child: Button(
-                              onPressed: () {
-                                setState(() {
-                                  _showBannedPreview = !_showBannedPreview;
-                                  if (_showBannedPreview) {
-                                    _showFavouritesPreview = false;
-                                  }
-                                });
-                              },
-                              child: Icon(
-                                _showBannedPreview
-                                    ? FluentIcons.block_contact
-                                    : FluentIcons.blocked,
-                                color: Colors.white,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 5),
-                Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.only(
-                      left: 16.0,
-                      right: 16.0,
-                      bottom: 16.0,
-                    ),
-                    child: Container(
-                      width: double.infinity,
-                      decoration: BoxDecoration(
-                        border: Border.all(color: const Color(0xFF2D3A3A)),
-                        borderRadius: BorderRadius.circular(4.0),
-                      ),
-                      child:
-                          _showBannedPreview
-                              ? widget.appState.bannedWallpapersService
-                                  .buildBannedPreview(
-                                    widget.appState.bannedWallpapers,
-                                    'Multi',
-                                    widget.appState,
-                                    setState,
-                                  )
-                              : _showFavouritesPreview
-                              ? widget.appState.favouriteWallpapersService
-                                  .buildFavouritesPreview(
-                                    widget.appState.favouriteWallpapers,
-                                    'Multi',
-                                    widget.appState,
-                                    setState,
-                                  )
-                              : _buildCurrentWallpaperPreview(),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
+    return PageLayout(
+      description: 'Uses the default repository for weekly wallpapers.',
+      previewTitle: 'Wallpaper Preview:',
+      previewContent:
+          _showBannedPreview
+              ? widget.appState.bannedWallpapersService.buildBannedPreview(
+                widget.appState.bannedWallpapers,
+                'Multi',
+                widget.appState,
+                setState,
+              )
+              : _showFavouritesPreview
+              ? widget.appState.favouriteWallpapersService
+                  .buildFavouritesPreview(
+                    widget.appState.favouriteWallpapers,
+                    'Multi',
+                    widget.appState,
+                    setState,
+                  )
+              : _buildCurrentWallpaperPreview(),
+      onToggleChanged: (favourites, banned) {
+        setState(() {
+          _showFavouritesPreview = favourites;
+          _showBannedPreview = banned;
+        });
+      },
     );
   }
 

@@ -3,7 +3,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:fluent_ui/fluent_ui.dart' hide Colors, Scrollbar;
 import 'package:flutter/material.dart'
     show Theme, ThemeData, Colors, Scaffold, Scrollbar;
-import 'package:gitwall/ui/base_page.dart';
+import 'package:gitwall/ui/common_widgets.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../state/app_state.dart';

@@ -1,7 +1,6 @@
-import 'package:bitsdojo_window/bitsdojo_window.dart';
 import 'package:fluent_ui/fluent_ui.dart' hide Colors;
 import 'package:flutter/material.dart' show Colors;
-import 'package:gitwall/ui/base_page.dart';
+import 'package:gitwall/ui/common_widgets.dart';
 import 'package:provider/provider.dart';
 import '../state/app_state.dart';
 
@@ -338,168 +337,66 @@ class _MultiPageState extends State<MultiPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      color: const Color(0xFF1F2A29),
-      child: Column(
+    return PageLayout(
+      description: 'Uses a repository with multiple resolutions.',
+      previewTitle: 'Wallpaper Preview:',
+      extraButtons: Row(
         children: [
-          WindowTitleBarBox(
-            child: Row(
-              children: [Expanded(child: MoveWindow()), const WindowButtons()],
-            ),
-          ),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const SizedBox(height: 10),
-                const Padding(
-                  padding: EdgeInsets.only(left: 16.0, right: 16.0),
-                  child: SizedBox(
-                    height: 20,
-                    child: Center(
-                      child: Text(
-                        'Uses a repository with multiple resolutions.',
-                        style: TextStyle(color: Colors.white),
-                      ),
-                    ),
+          Consumer<AppState>(
+            builder:
+                (context, appState, child) => Tooltip(
+                  message: 'Set next wallpaper',
+                  child: Button(
+                    onPressed: () => appState.setNextWallpaper(),
+                    child: const Icon(FluentIcons.next, color: Colors.white),
                   ),
                 ),
-                const SizedBox(height: 10),
-                Padding(
-                  padding: const EdgeInsets.only(left: 16.0, right: 16.0),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text(
-                        'Wallpaper Preview:',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
+          ),
+          const SizedBox(width: 8),
+          Consumer<AppState>(
+            builder:
+                (context, appState, child) => Tooltip(
+                  message: 'Toggle auto shuffle',
+                  child: Button(
+                    onPressed:
+                        () => appState.toggleAutoShuffle(
+                          !appState.autoShuffleEnabled,
                         ),
-                      ),
-                      Row(
-                        children: [
-                          Consumer<AppState>(
-                            builder:
-                                (context, appState, child) => Tooltip(
-                                  message: 'Set next wallpaper',
-                                  child: Button(
-                                    onPressed:
-                                        () => appState.setNextWallpaper(),
-                                    child: const Icon(
-                                      FluentIcons.next,
-                                      color: Colors.white,
-                                    ),
-                                  ),
-                                ),
-                          ),
-                          const SizedBox(width: 8),
-                          Consumer<AppState>(
-                            builder:
-                                (context, appState, child) => Tooltip(
-                                  message: 'Toggle auto shuffle',
-                                  child: Button(
-                                    onPressed:
-                                        () => appState.toggleAutoShuffle(
-                                          !appState.autoShuffleEnabled,
-                                        ),
-                                    child: Icon(
-                                      appState.autoShuffleEnabled
-                                          ? FluentIcons
-                                              .repeat_all //autoshuffle is on
-                                          : FluentIcons
-                                              .repeat_one, //autoshuffle is on
-                                      color: Colors.white,
-                                    ),
-                                  ),
-                                ),
-                          ),
-                          const SizedBox(width: 8),
-                          Tooltip(
-                            message: 'Toggle favourites preview',
-                            child: Button(
-                              onPressed: () {
-                                setState(() {
-                                  _showFavouritesPreview =
-                                      !_showFavouritesPreview;
-                                  if (_showFavouritesPreview) {
-                                    _showBannedPreview = false;
-                                  }
-                                });
-                              },
-                              child: Icon(
-                                _showFavouritesPreview
-                                    ? FluentIcons.heart_fill
-                                    : FluentIcons.heart,
-                                color: Colors.white,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Tooltip(
-                            message: 'Toggle banned preview',
-                            child: Button(
-                              onPressed: () {
-                                setState(() {
-                                  _showBannedPreview = !_showBannedPreview;
-                                  if (_showBannedPreview) {
-                                    _showFavouritesPreview = false;
-                                  }
-                                });
-                              },
-                              child: Icon(
-                                _showBannedPreview
-                                    ? FluentIcons.block_contact
-                                    : FluentIcons.blocked,
-                                color: Colors.white,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 5),
-                Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.only(
-                      left: 16.0,
-                      right: 16.0,
-                      bottom: 16.0,
-                    ),
-                    child: Container(
-                      width: double.infinity,
-                      decoration: BoxDecoration(
-                        border: Border.all(color: const Color(0xFF2D3A3A)),
-                        borderRadius: BorderRadius.circular(4.0),
-                      ),
-                      child:
-                          _showBannedPreview
-                              ? widget.appState.bannedWallpapersService
-                                  .buildBannedPreview(
-                                    widget.appState.bannedWallpapers,
-                                    'Multi',
-                                    widget.appState,
-                                    setState,
-                                  )
-                              : _showFavouritesPreview
-                              ? widget.appState.favouriteWallpapersService
-                                  .buildFavouritesPreview(
-                                    widget.appState.favouriteWallpapers,
-                                    'Multi',
-                                    widget.appState,
-                                    setState,
-                                  )
-                              : _buildPreviewContent(),
+                    child: Icon(
+                      appState.autoShuffleEnabled
+                          ? FluentIcons.repeat_all
+                          : FluentIcons.repeat_one,
+                      color: Colors.white,
                     ),
                   ),
                 ),
-              ],
-            ),
           ),
+          const SizedBox(width: 8),
         ],
       ),
+      previewContent:
+          _showBannedPreview
+              ? widget.appState.bannedWallpapersService.buildBannedPreview(
+                widget.appState.bannedWallpapers,
+                'Multi',
+                widget.appState,
+                setState,
+              )
+              : _showFavouritesPreview
+              ? widget.appState.favouriteWallpapersService
+                  .buildFavouritesPreview(
+                    widget.appState.favouriteWallpapers,
+                    'Multi',
+                    widget.appState,
+                    setState,
+                  )
+              : _buildPreviewContent(),
+      onToggleChanged: (favourites, banned) {
+        setState(() {
+          _showFavouritesPreview = favourites;
+          _showBannedPreview = banned;
+        });
+      },
     );
   }
 }

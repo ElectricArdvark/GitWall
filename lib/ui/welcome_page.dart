@@ -1,7 +1,7 @@
 import 'package:bitsdojo_window/bitsdojo_window.dart';
 import 'package:fluent_ui/fluent_ui.dart' hide Colors;
 import 'package:flutter/material.dart' show Colors;
-import 'package:gitwall/ui/base_page.dart';
+import 'package:gitwall/ui/common_widgets.dart';
 import 'package:provider/provider.dart';
 import '../state/app_state.dart';
 
