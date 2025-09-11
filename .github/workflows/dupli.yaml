@@ -1,5 +1,13 @@
-- name: Duplicate code detection tool
-  uses: platisd/duplicate-code-detection-tool@v1.2.0
-  on:
-   push
-  
+name: Duplicate code detection
+
+on:
+  workflow_dispatch:    # <-- enables the “Run workflow” button
+  push:
+    branches: [ main ]
+
+jobs:
+  detect-duplicates:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: platisd/duplicate-code-detection-tool@v1.2.0
