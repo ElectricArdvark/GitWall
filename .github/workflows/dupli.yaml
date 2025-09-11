@@ -1,11 +1,14 @@
-name: Duplicate code detection
+name: Duplicate check on main
+
 on:
-  pull_request:   # instead of push or workflow_dispatch
+  push:
     branches: [ main ]
+  workflow_dispatch:
 
 jobs:
   detect-duplicates:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: platisd/duplicate-code-detection-tool@v1.2.0
+      - name: Run jscpd
+        run: npx jscpd --reporters console .
