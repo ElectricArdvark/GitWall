@@ -4,31 +4,21 @@ import 'package:flutter/material.dart' show Colors;
 import 'package:fluent_ui/fluent_ui.dart' hide Colors;
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as p;
-import 'settings_service.dart';
 import '../state/app_state.dart';
 
 /// Service class to manage banned wallpapers functionality
 class BannedWallpapersService {
   static const String _bannedWallpapersFileName = 'banned_wallpapers.json';
 
-  final SettingsService _settingsService;
-
-  BannedWallpapersService(this._settingsService);
+  BannedWallpapersService();
 
   /// Gets the file path for storing banned wallpapers
   Future<String> _getBannedWallpapersPath() async {
-    final customLocation = await _settingsService.getCustomWallpaperLocation();
-    if (customLocation != null && customLocation.isNotEmpty) {
-      final cachePath = p.join(customLocation, 'GitWall', 'gitwall');
-      await Directory(cachePath).create(recursive: true);
-      return p.join(cachePath, _bannedWallpapersFileName);
-    } else {
-      final directory = await getApplicationSupportDirectory();
-      final appDataDir = directory.parent;
-      final cachePath = p.join(appDataDir.path, '..', 'GitWall', 'gitwall');
-      await Directory(cachePath).create(recursive: true);
-      return p.join(cachePath, _bannedWallpapersFileName);
-    }
+    final directory = await getApplicationSupportDirectory();
+    final appDataDir = directory.parent;
+    final cachePath = p.join(appDataDir.path, '..', 'GitWall');
+    await Directory(cachePath).create(recursive: true);
+    return p.join(cachePath, _bannedWallpapersFileName);
   }
 
   /// Saves banned wallpapers to persistent storage

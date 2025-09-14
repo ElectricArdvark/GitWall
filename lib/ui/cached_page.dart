@@ -17,7 +17,7 @@ class CachedPage extends StatefulWidget {
 }
 
 class _CachedPageState extends State<CachedPage> {
-  List<File> _cachedImages = [];
+  List<Map<String, dynamic>> _cachedImages = [];
   bool _isLoading = false;
   bool _hasError = false;
   String _errorMessage = '';
@@ -51,9 +51,9 @@ class _CachedPageState extends State<CachedPage> {
       _hasError = false;
     });
     try {
-      // Use AppData\Local\Temp\gitwall_cache as the cache directory
-      final tempPath = Platform.environment['TEMP'];
-      final cacheDir = Directory('$tempPath\\gitwall_cache');
+      // Get the cache directory based on custom location setting
+      final cacheDirPath = await widget.appState.getCacheDirectoryPath();
+      final cacheDir = Directory(cacheDirPath);
 
       // Create directory if it doesn't exist
       if (!await cacheDir.exists()) {
@@ -93,7 +93,7 @@ class _CachedPageState extends State<CachedPage> {
           allBannedWallpapers.map((banned) => banned['url'] as String).toSet();
 
       // Filter out banned wallpapers by URL comparison
-      final filteredImages = <File>[];
+      final filteredImages = <Map<String, dynamic>>[];
       for (final file in imageFiles) {
         final fileName = p.basename(file.path);
         final cacheEntry = cacheMetadata[fileName];
@@ -105,11 +105,11 @@ class _CachedPageState extends State<CachedPage> {
           final isBanned = bannedUrls.contains(originalUrl);
 
           if (!isBanned) {
-            filteredImages.add(file);
+            filteredImages.add({'file': file, 'url': originalUrl});
           } else {}
         } else {
           // Include files without metadata (fallback for compatibility)
-          filteredImages.add(file);
+          filteredImages.add({'file': file, 'url': null});
         }
       }
 
@@ -126,11 +126,11 @@ class _CachedPageState extends State<CachedPage> {
     }
   }
 
-  void _deleteCachedImage(File file) async {
+  void _deleteCachedImage(Map<String, dynamic> item) async {
     try {
-      await file.delete();
+      await item['file'].delete();
       setState(() {
-        _cachedImages.remove(file);
+        _cachedImages.remove(item);
       });
     } catch (e) {
       print('Error deleting file: $e');
@@ -184,35 +184,49 @@ class _CachedPageState extends State<CachedPage> {
             ),
             itemCount: _cachedImages.length,
             itemBuilder: (context, index) {
+              final item = _cachedImages[index];
               return Padding(
                 padding: const EdgeInsets.all(4.0),
                 child: GestureDetector(
                   onTap:
                       () => widget.appState.wallpaperService.setWallpaper(
-                        _cachedImages[index].path,
+                        item['file'].path,
                       ),
                   onSecondaryTap: () {
                     showDialog(
                       context: context,
                       builder: (BuildContext context) {
                         return ContentDialog(
-                          title: const Text('Delete Wallpaper'),
+                          title: const Text('Wallpaper Options'),
                           content: const Text(
-                            'Are you sure you want to delete this cached wallpaper?',
+                            'What would you like to do with this wallpaper?',
                           ),
                           actions: [
+                            if (item['url'] != null)
+                              Tooltip(
+                                message: 'Add to favourites',
+                                child: Button(
+                                  onPressed: () {
+                                    widget.appState.favouriteWallpaper(
+                                      item['url'],
+                                    );
+                                    Navigator.of(context).pop();
+                                  },
+                                  child: const Text('Favourite'),
+                                ),
+                              ),
                             Tooltip(
                               message: 'Delete this cached wallpaper',
                               child: Button(
                                 onPressed: () {
-                                  _deleteCachedImage(_cachedImages[index]);
+                                  _deleteCachedImage(item);
                                   Navigator.of(context).pop();
                                 },
                                 child: const Text('Delete'),
                               ),
                             ),
                             Tooltip(
-                              message: 'Cancel deletion',
+                              message: 'Cancel',
                               child: Button(
                                 onPressed: () => Navigator.of(context).pop(),
                                 child: const Text('Cancel'),
@@ -224,7 +238,7 @@ class _CachedPageState extends State<CachedPage> {
                     );
                   },
                   child: Image.file(
-                    _cachedImages[index],
+                    item['file'],
                     fit: BoxFit.cover,
                     errorBuilder: (context, error, stackTrace) {
                       return const Center(

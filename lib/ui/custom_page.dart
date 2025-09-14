@@ -169,9 +169,9 @@ class _CustomPageState extends State<CustomPage> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text(
+              const Text(
                 'No Internet Available',
-                style: const TextStyle(
+                style: TextStyle(
                   color: Colors.white,
                   fontSize: 18,
                   fontWeight: FontWeight.bold,

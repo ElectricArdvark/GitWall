@@ -218,6 +218,7 @@ class GitHubService {
     String resolution,
     String extension, {
     String? customFileName,
+    String? customCacheDir,
   }) async {
     String fileName;
     String effectiveDay = day;
@@ -301,8 +302,25 @@ class GitHubService {
 
     try {
       final cacheManager = _cacheManager ?? DefaultCacheManager();
-      final file = await cacheManager.getSingleFile(url);
-      return WallpaperDownloadResult(file, fileName, uniqueId);
+      final cachedFile = await cacheManager.getSingleFile(url);
+
+      // If custom cache directory is provided, copy the file there
+      if (customCacheDir != null && customCacheDir.isNotEmpty) {
+        final customCacheDirectory = Directory(customCacheDir);
+        if (!await customCacheDirectory.exists()) {
+          await customCacheDirectory.create(recursive: true);
+        }
+
+        final customFilePath = '$customCacheDir/$fileName';
+        final customFile = File(customFilePath);
+
+        // Copy the cached file to the custom location
+        await cachedFile.copy(customFilePath);
+
+        return WallpaperDownloadResult(customFile, fileName, uniqueId);
+      } else {
+        return WallpaperDownloadResult(cachedFile, fileName, uniqueId);
+      }
     } catch (e) {
       throw Exception('Failed to download or cache image: $e');
     }

@@ -169,20 +169,11 @@ class SettingsService {
   }
 
   Future<String> _getShuffleIndexPath() async {
-    final customLocation = await getCustomWallpaperLocation();
-    if (customLocation != null && customLocation.isNotEmpty) {
-      // Use custom location if set (same as cache service)
-      final cachePath = p.join(customLocation, 'GitWall', 'gitwall');
-      await Directory(cachePath).create(recursive: true);
-      return p.join(cachePath, 'shuffle_index.json');
-    } else {
-      // Default location (same as cache service)
-      final directory = await getApplicationSupportDirectory();
-      final appDataDir = directory.parent;
-      final cachePath = p.join(appDataDir.path, '..', 'GitWall', 'gitwall');
-      await Directory(cachePath).create(recursive: true);
-      return p.join(cachePath, 'shuffle_index.json');
-    }
+    final directory = await getApplicationSupportDirectory();
+    final appDataDir = directory.parent;
+    final cachePath = p.join(appDataDir.path, '..', 'GitWall');
+    await Directory(cachePath).create(recursive: true);
+    return p.join(cachePath, 'shuffle_index.json');
   }
 
   Future<void> saveUsedWallpapers(

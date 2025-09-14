@@ -8,10 +8,12 @@ import 'package:gitwall/services/favourite_wallpapers_service.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 import 'package:intl/intl.dart';
+import 'package:path_provider/path_provider.dart';
 import '../constants.dart'; // Import constants.dart
 import '../services/github_service.dart';
 import '../services/wallpaper_service.dart';
 import '../utils/helpers.dart';
+import 'package:path/path.dart' as p;
 
 class AppState extends ChangeNotifier {
   // Services
@@ -33,6 +35,17 @@ class AppState extends ChangeNotifier {
 
   // Public getter for cache manager
   BaseCacheManager get customCacheManager => _customCacheManager;
+
+  // Helper method to get cache directory path based on custom location setting
+  Future<String> getCacheDirectoryPath() async {
+    final customLocation = await _settingsService.getCustomWallpaperLocation();
+    if (customLocation != null && customLocation.isNotEmpty) {
+      return '$customLocation\\GitWall';
+    } else {
+      final tempPath = Platform.environment['TEMP'];
+      return '$tempPath\\gitwall_cache';
+    }
+  }
 
   // State
   String _status = "Initializing...";
@@ -119,12 +132,15 @@ class AppState extends ChangeNotifier {
 
   Future<void> _initialize() async {
     // Initialize services
-    _bannedWallpapersService = BannedWallpapersService(_settingsService);
-    _favouriteWallpapersService = FavouriteWallpapersService(_settingsService);
+    final directory = await getApplicationSupportDirectory();
+    final appDataDir = directory.parent;
+    final cachePath = p.join(appDataDir.path, '..', 'GitWall');
+    _bannedWallpapersService = BannedWallpapersService();
+    _favouriteWallpapersService = FavouriteWallpapersService();
 
     // Initialize custom cache manager
-    final tempPath = Platform.environment['TEMP'];
-    final cacheDir = Directory('$tempPath\\gitwall_cache');
+    final cacheDirPath = await getCacheDirectoryPath();
+    final cacheDir = Directory(cacheDirPath);
     if (!await cacheDir.exists()) {
       await cacheDir.create(recursive: true);
     }
@@ -133,8 +149,11 @@ class AppState extends ChangeNotifier {
         'gitwall_cache',
         stalePeriod: const Duration(days: 7),
         maxNrOfCacheObjects: 1000,
-        repo: JsonCacheInfoRepository(databaseName: 'gitwall_cache'),
+        repo: JsonCacheInfoRepository(
+          path: ('$cachePath\\gitwall_cache.json'),
+        ), //(databaseName: 'gitwall_cache'),
         fileService: HttpFileService(),
+        fileSystem: IOFileSystem(cacheDir.path),
       ),
     );
 
@@ -408,11 +427,13 @@ class AppState extends ChangeNotifier {
 
           _updateStatus("Downloading wallpaper for $day ($resolution)$ext...");
           try {
+            final cacheDirPath = await getCacheDirectoryPath();
             downloadResult = await _githubService.downloadWallpaper(
               repoUrlToUse,
               day,
               resolution,
               ext,
+              customCacheDir: cacheDirPath,
             );
 
             savedFile = downloadResult.file;
@@ -609,11 +630,13 @@ class AppState extends ChangeNotifier {
         } else {
           // Original random logic
           _updateStatus("Downloading wallpaper from $_activeTab repository...");
+          final cacheDirPath = await getCacheDirectoryPath();
           downloadResult = await _githubService.downloadWallpaper(
             repoUrlToUse,
             effectiveDay,
             resolution,
             '', // Extension is not needed for other tabs
+            customCacheDir: cacheDirPath,
           );
 
           savedFile = downloadResult.file;
@@ -1077,13 +1100,6 @@ class AppState extends ChangeNotifier {
 
   /// Favourites a wallpaper by URL for the current tab
   Future<void> favouriteWallpaper(String url) async {
-    if (_activeTab != 'Multi' && _activeTab != 'Custom') {
-      _updateStatus(
-        "Favourite wallpaper only available for Multi and Custom tabs",
-      );
-      return;
-    }
-
     try {
       final uri = Uri.parse(url);
       final fileName = uri.pathSegments.last;
@@ -1092,6 +1108,12 @@ class AppState extends ChangeNotifier {
       String effectiveDay = '';
 
       switch (_activeTab) {
+        case 'Weekly':
+          repoUrlToUse = defaultRepoUrl;
+          // Extract day from file name (e.g., 'monday_1920x1080.jpg' -> 'monday')
+          final dayMatch = RegExp(r'^(\w+)_').firstMatch(fileName);
+          effectiveDay = dayMatch?.group(1) ?? '';
+          break;
         case 'Multi':
           repoUrlToUse = defaultRepoUrl;
           effectiveDay = 'multi';
@@ -1099,7 +1121,23 @@ class AppState extends ChangeNotifier {
         case 'Custom':
           repoUrlToUse = _customRepoUrl;
           break;
+        case 'Saved':
+          // For cached wallpapers, extract repo URL from the GitHub URL
+          final pathSegments = uri.pathSegments;
+          if (pathSegments.length >= 3) {
+            final user = pathSegments[0];
+            final repo = pathSegments[1];
+            repoUrlToUse = 'https://github.com/$user/$repo';
+            effectiveDay = 'multi'; // Assume multi for cached wallpapers
+          } else {
+            _updateStatus("Cannot determine repository for cached wallpaper");
+            return;
+          }
+          break;
         default:
+          _updateStatus(
+            "Favourite wallpaper not supported for $_activeTab tab",
+          );
           return;
       }
 
@@ -1110,11 +1148,8 @@ class AppState extends ChangeNotifier {
         fileName,
       );
 
-      // Use 'Multi' key for both Multi and Custom tabs to share favourite wallpapers
-      final tabKey =
-          (_activeTab == 'Multi' || _activeTab == 'Custom')
-              ? 'Multi'
-              : _activeTab;
+      // Use 'Multi' key for all tabs to share favourite wallpapers
+      final tabKey = 'Multi';
 
       // Check if already favourited
       if (!_favouriteWallpapersService.isWallpaperFavourited(
@@ -1148,19 +1183,9 @@ class AppState extends ChangeNotifier {
 
   /// Unfavourites a wallpaper by unique ID for the current tab
   Future<void> unfavouriteWallpaper(String uniqueId) async {
-    if (_activeTab != 'Multi' && _activeTab != 'Custom') {
-      _updateStatus(
-        "Unfavourite wallpaper only available for Multi and Custom tabs",
-      );
-      return;
-    }
-
     try {
-      // Use 'Multi' key for both Multi and Custom tabs to share favourite wallpapers
-      final tabKey =
-          (_activeTab == 'Multi' || _activeTab == 'Custom')
-              ? 'Multi'
-              : _activeTab;
+      // Use 'Multi' key for all tabs to share favourite wallpapers
+      final tabKey = 'Multi';
 
       _favouriteWallpapers = await _favouriteWallpapersService
           .unfavouriteWallpaper(_favouriteWallpapers, tabKey, uniqueId);
@@ -1176,8 +1201,8 @@ class AppState extends ChangeNotifier {
   Future<void> _setRandomCachedWallpaper() async {
     try {
       // Get the cache directory
-      final tempPath = Platform.environment['TEMP'];
-      final cacheDir = Directory('$tempPath\\gitwall_cache');
+      final cacheDirPath = await getCacheDirectoryPath();
+      final cacheDir = Directory(cacheDirPath);
 
       // Create directory if it doesn't exist
       if (!await cacheDir.exists()) {
@@ -1214,8 +1239,8 @@ class AppState extends ChangeNotifier {
   Future<void> _setNextCachedWallpaper() async {
     try {
       // Get the cache directory
-      final tempPath = Platform.environment['TEMP'];
-      final cacheDir = Directory('$tempPath\\gitwall_cache');
+      final cacheDirPath = await getCacheDirectoryPath();
+      final cacheDir = Directory(cacheDirPath);
 
       // Create directory if it doesn't exist
       if (!await cacheDir.exists()) {

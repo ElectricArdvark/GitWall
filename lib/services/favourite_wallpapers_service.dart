@@ -4,7 +4,6 @@ import 'package:flutter/material.dart' show Colors;
 import 'package:fluent_ui/fluent_ui.dart' hide Colors;
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as p;
-import 'settings_service.dart';
 import '../state/app_state.dart';
 
 /// Service class to manage favourite wallpapers functionality
@@ -12,24 +11,15 @@ class FavouriteWallpapersService {
   static const String _favouriteWallpapersFileName =
       'favourite_wallpapers.json';
 
-  final SettingsService _settingsService;
-
-  FavouriteWallpapersService(this._settingsService);
+  FavouriteWallpapersService();
 
   /// Gets the file path for storing favourite wallpapers
   Future<String> _getFavouriteWallpapersPath() async {
-    final customLocation = await _settingsService.getCustomWallpaperLocation();
-    if (customLocation != null && customLocation.isNotEmpty) {
-      final cachePath = p.join(customLocation, 'GitWall', 'gitwall');
-      await Directory(cachePath).create(recursive: true);
-      return p.join(cachePath, _favouriteWallpapersFileName);
-    } else {
-      final directory = await getApplicationSupportDirectory();
-      final appDataDir = directory.parent;
-      final cachePath = p.join(appDataDir.path, '..', 'GitWall', 'gitwall');
-      await Directory(cachePath).create(recursive: true);
-      return p.join(cachePath, _favouriteWallpapersFileName);
-    }
+    final directory = await getApplicationSupportDirectory();
+    final appDataDir = directory.parent;
+    final cachePath = p.join(appDataDir.path, '..', 'GitWall');
+    await Directory(cachePath).create(recursive: true);
+    return p.join(cachePath, _favouriteWallpapersFileName);
   }
 
   /// Saves favourite wallpapers to persistent storage
