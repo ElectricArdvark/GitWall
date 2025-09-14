@@ -52,7 +52,10 @@ class GitHubService {
         // For Multi, since effectiveDay is set to empty string
         return '$basePath/Multi/$resolution/$fileName';
       } else {
-        return '$basePath/Weekly/$day/$fileName';
+        // For Weekly wallpapers, use capitalized day subdirectory
+        final capitalizedDay =
+            day[0].toUpperCase() + day.substring(1).toLowerCase();
+        return '$basePath/Weekly/$capitalizedDay/$fileName';
       }
     } else if (repoUrl.contains('Multi')) {
       return '$basePath/Multi/$resolution/$fileName';
@@ -80,6 +83,12 @@ class GitHubService {
     if (repoUrl == defaultRepoUrl && day.toLowerCase() == 'multi') {
       subPath = 'Multi/$resolution';
       print('DEBUG: Using subPath for Multi: $subPath');
+    } else if (repoUrl == defaultRepoUrl && day.isNotEmpty) {
+      // For Weekly wallpapers, use the capitalized day subdirectory
+      final capitalizedDay =
+          day[0].toUpperCase() + day.substring(1).toLowerCase();
+      subPath = 'Weekly/$capitalizedDay';
+      print('DEBUG: Using subPath for Weekly: $subPath');
     } else {
       subPath = ''; // Root for custom
       print('DEBUG: Using root path for Custom');
@@ -245,7 +254,10 @@ class GitHubService {
 
       effectiveDay = '';
     } else if (repoUrl == defaultRepoUrl) {
-      fileName = '${day}_$resolution$extension';
+      // For Weekly wallpapers, use capitalized day name
+      final capitalizedDay =
+          day[0].toUpperCase() + day.substring(1).toLowerCase();
+      fileName = '${capitalizedDay}_$resolution$extension';
     } else if (repoUrl.contains('Multi')) {
       final allFiles = await _fetchRepositoryContents(
         repoUrl,

@@ -700,39 +700,75 @@ class AppState extends ChangeNotifier {
 
     try {
       print('DEBUG: Attempting to download file from cache manager...');
-      final file = await _customCacheManager.getSingleFile(url);
-      print('DEBUG: File downloaded successfully: ${file.path}');
 
-      final uri = Uri.parse(url);
-      final fileName = uri.pathSegments.last;
-      final day = ''; // Not applicable
-      final resolution = _currentResolution;
-      final uniqueId = _generateWallpaperUniqueId(
-        '', // repo not needed here
-        day,
-        resolution,
-        fileName,
-      );
-
-      print('DEBUG: Setting wallpaper with file path: ${file.path}');
-      _wallpaperService.setWallpaper(file.path);
-      print('DEBUG: Wallpaper set successfully');
-
-      _updateStatus("Wallpaper set from URL: $fileName", file: file);
-      // Save the current weekly wallpaper path for offline preview
-      if (_activeTab == 'Weekly') {
-        _settingsService.saveCurrentWeeklyWallpaperPath(file.path);
+      // First check if the wallpaper is already cached
+      bool isCached = false;
+      File? cachedFile;
+      try {
+        final cachedFileInfo = await _customCacheManager.getFileFromCache(url);
+        if (cachedFileInfo != null && cachedFileInfo.file.existsSync()) {
+          isCached = true;
+          cachedFile = cachedFileInfo.file;
+          print('DEBUG: Wallpaper already cached: ${cachedFile.path}');
+        }
+      } catch (cacheCheckError) {
+        // Ignore cache check errors, we'll try to download
+        print('DEBUG: Error checking cache: $cacheCheckError');
       }
 
-      // Add this wallpaper to the used list for the current tab
-      if (_activeTab == 'Multi' || _activeTab == 'Custom') {
-        final used = _usedWallpapers[_activeTab] ?? [];
-        if (!used.contains(uniqueId)) {
-          used.add(uniqueId);
-          _usedWallpapers[_activeTab] = used;
-          // Save immediately to ensure persistence
-          _settingsService.saveUsedWallpapers(_usedWallpapers);
+      // If not cached, try to download
+      if (!isCached) {
+        try {
+          cachedFile = await _customCacheManager.getSingleFile(url);
+          print('DEBUG: File downloaded successfully: ${cachedFile.path}');
+        } catch (downloadError) {
+          // Check if it's a 404 error
+          if (downloadError.toString().contains('404') ||
+              downloadError.toString().contains('Invalid statusCode: 404')) {
+            print('DEBUG: Wallpaper URL returned 404: $url');
+            _updateStatus("Wallpaper URL not found (404)");
+            return;
+          } else {
+            // Re-throw other errors
+            throw downloadError;
+          }
         }
+      }
+
+      if (cachedFile != null) {
+        final uri = Uri.parse(url);
+        final fileName = uri.pathSegments.last;
+        final day = ''; // Not applicable
+        final resolution = _currentResolution;
+        final uniqueId = _generateWallpaperUniqueId(
+          '', // repo not needed here
+          day,
+          resolution,
+          fileName,
+        );
+
+        print('DEBUG: Setting wallpaper with file path: ${cachedFile.path}');
+        _wallpaperService.setWallpaper(cachedFile.path);
+        print('DEBUG: Wallpaper set successfully');
+
+        _updateStatus("Wallpaper set from URL: $fileName", file: cachedFile);
+        // Save the current weekly wallpaper path for offline preview
+        if (_activeTab == 'Weekly') {
+          _settingsService.saveCurrentWeeklyWallpaperPath(cachedFile.path);
+        }
+
+        // Add this wallpaper to the used list for the current tab
+        if (_activeTab == 'Multi' || _activeTab == 'Custom') {
+          final used = _usedWallpapers[_activeTab] ?? [];
+          if (!used.contains(uniqueId)) {
+            used.add(uniqueId);
+            _usedWallpapers[_activeTab] = used;
+            // Save immediately to ensure persistence
+            _settingsService.saveUsedWallpapers(_usedWallpapers);
+          }
+        }
+      } else {
+        _updateStatus("Failed to get wallpaper file");
       }
     } catch (e) {
       print('DEBUG: Error in setWallpaperForUrl: ${e.toString()}');
@@ -1157,15 +1193,45 @@ class AppState extends ChangeNotifier {
         tabKey,
         uniqueId,
       )) {
-        // Cache the wallpaper to ensure it's available offline
+        // First check if the wallpaper is already cached
+        bool isCached = false;
         try {
-          await _customCacheManager.getSingleFile(url);
-          _updateStatus("Wallpaper cached and added to favourites");
-        } catch (cacheError) {
-          _updateStatus(
-            "Warning: Failed to cache wallpaper, but added to favourites",
+          final cachedFileInfo = await _customCacheManager.getFileFromCache(
+            url,
           );
-          print('Error caching favourited wallpaper: $cacheError');
+          if (cachedFileInfo != null && cachedFileInfo.file.existsSync()) {
+            isCached = true;
+            _updateStatus("Wallpaper already cached, adding to favourites");
+          }
+        } catch (cacheCheckError) {
+          // Ignore cache check errors, we'll try to download
+          print(
+            'Error checking cache for favourited wallpaper: $cacheCheckError',
+          );
+        }
+
+        // If not cached, try to cache the wallpaper
+        if (!isCached) {
+          try {
+            await _customCacheManager.getSingleFile(url);
+            _updateStatus("Wallpaper cached and added to favourites");
+          } catch (cacheError) {
+            // Check if it's a 404 error
+            if (cacheError.toString().contains('404') ||
+                cacheError.toString().contains('Invalid statusCode: 404')) {
+              _updateStatus(
+                "Wallpaper URL not found (404), but added to favourites for later",
+              );
+              print(
+                'Wallpaper URL returned 404, but proceeding with favouriting: $url',
+              );
+            } else {
+              _updateStatus(
+                "Warning: Failed to cache wallpaper, but added to favourites",
+              );
+              print('Error caching favourited wallpaper: $cacheError');
+            }
+          }
         }
 
         _favouriteWallpapers = await _favouriteWallpapersService

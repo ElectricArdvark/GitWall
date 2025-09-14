@@ -96,7 +96,7 @@ class _MyAppState extends State<MyApp> with WindowListener, TrayListener {
         visualDensity: VisualDensity.standard,
       ),
       // Set the initial home page
-      home: const HomePage(),
+      home: const BasePage(),
       // Hide debug banner in development
       debugShowCheckedModeBanner: false,
     );

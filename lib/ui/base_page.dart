@@ -1,6 +1,6 @@
 import 'package:bitsdojo_window/bitsdojo_window.dart';
-import 'package:fluent_ui/fluent_ui.dart' hide Colors;
-//import 'package:flutter/material.dart' hide FilledButton;
+import 'package:fluent_ui/fluent_ui.dart';
+import 'package:flutter/material.dart' show CircularProgressIndicator;
 import 'package:gitwall/ui/settings_page.dart';
 import 'package:provider/provider.dart';
 import 'package:gitwall/ui/welcome_page.dart';
@@ -12,15 +12,15 @@ import '../state/app_state.dart';
 
 // Main home page widget that manages the overall app layout
 // Contains navigation sidebar and main content area
-class HomePage extends StatefulWidget {
-  const HomePage({super.key});
+class BasePage extends StatefulWidget {
+  const BasePage({super.key});
 
   @override
-  State<HomePage> createState() => _HomePageState();
+  State<BasePage> createState() => _BasePageState();
 }
 
 // State class for HomePage managing navigation and page control
-class _HomePageState extends State<HomePage> {
+class _BasePageState extends State<BasePage> {
   // Current navigation tab index (0 = Home, 1 = Settings)
   int _navigationIndex = 0;
   // Controller for managing page views
@@ -33,9 +33,12 @@ class _HomePageState extends State<HomePage> {
     _pageController = PageController(initialPage: _navigationIndex);
     // Listen for page changes to update navigation index
     _pageController.addListener(() {
-      setState(() {
-        _navigationIndex = _pageController.page!.round();
-      });
+      final int newIndex = _pageController.page!.round();
+      if (newIndex != _navigationIndex) {
+        setState(() {
+          _navigationIndex = newIndex;
+        });
+      }
     });
   }
 
@@ -249,10 +252,37 @@ class LeftSideZone extends StatelessWidget {
                     message: 'Force refresh the wallpaper',
                     child: SizedBox(
                       width: double.infinity,
-                      child: FilledButton(
-                        onPressed:
-                            () => appState.updateWallpaper(isManual: true),
-                        child: const Text('Force Refresh'),
+                      child: StatefulBuilder(
+                        builder: (context, setState) {
+                          bool isUpdatingWallpaper = false;
+                          Future<void> handleForceRefresh() async {
+                            setState(() => isUpdatingWallpaper = true);
+                            try {
+                              await appState.updateWallpaper(isManual: true);
+                            } finally {
+                              setState(() => isUpdatingWallpaper = false);
+                            }
+                          }
+
+                          return FilledButton(
+                            onPressed:
+                                isUpdatingWallpaper ? null : handleForceRefresh,
+                            child:
+                                isUpdatingWallpaper
+                                    ? const SizedBox(
+                                      width: 20,
+                                      height: 20,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        valueColor:
+                                            AlwaysStoppedAnimation<Color>(
+                                              Colors.white,
+                                            ),
+                                      ),
+                                    )
+                                    : const Text('Force Refresh'),
+                          );
+                        },
                       ),
                     ),
                   ),

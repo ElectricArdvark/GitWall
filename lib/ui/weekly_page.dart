@@ -136,75 +136,46 @@ class _WeeklyPageState extends State<WeeklyPage> {
 
         return GestureDetector(
           onSecondaryTap: () {
-            if (wallpaperUrl == null) {
-              // Fallback: try to construct URL based on current day
-              final day = _getCurrentDay();
-              final resolution = widget.appState.currentResolution;
-              final fallbackUrl =
-                  'https://raw.githubusercontent.com/ElectricArdvark/GitWall-WP/main/Weekly/${day}_$resolution.jpg';
+            final day = _getCurrentDay();
+            final capitalizedDay =
+                day[0].toUpperCase() + day.substring(1).toLowerCase();
+            final resolution = widget.appState.currentResolution;
+            final extension = file.path.split('.').last;
 
-              showDialog(
-                context: context,
-                builder: (BuildContext context) {
-                  return ContentDialog(
-                    title: const Text('Wallpaper Options'),
-                    content: const Text(
-                      'What would you like to do with this wallpaper?',
+            final fallbackUrl =
+                'https://raw.githubusercontent.com/ElectricArdvark/GitWall-WP/main/Weekly/$capitalizedDay/${capitalizedDay}_$resolution.$extension';
+
+            final urlToFavourite = wallpaperUrl ?? fallbackUrl;
+            showDialog(
+              context: context,
+              builder: (BuildContext context) {
+                return ContentDialog(
+                  title: const Text('Wallpaper Options'),
+                  content: const Text(
+                    'What would you like to do with this wallpaper?',
+                  ),
+                  actions: [
+                    Tooltip(
+                      message: 'Add to favourites',
+                      child: Button(
+                        onPressed: () {
+                          widget.appState.favouriteWallpaper(urlToFavourite);
+                          Navigator.of(context).pop();
+                        },
+                        child: const Text('Favourite'),
+                      ),
                     ),
-                    actions: [
-                      Tooltip(
-                        message: 'Add to favourites',
-                        child: Button(
-                          onPressed: () {
-                            widget.appState.favouriteWallpaper(fallbackUrl);
-                            Navigator.of(context).pop();
-                          },
-                          child: const Text('Favourite'),
-                        ),
+                    Tooltip(
+                      message: 'Cancel',
+                      child: Button(
+                        onPressed: () => Navigator.of(context).pop(),
+                        child: const Text('Cancel'),
                       ),
-                      Tooltip(
-                        message: 'Cancel',
-                        child: Button(
-                          onPressed: () => Navigator.of(context).pop(),
-                          child: const Text('Cancel'),
-                        ),
-                      ),
-                    ],
-                  );
-                },
-              );
-            } else {
-              showDialog(
-                context: context,
-                builder: (BuildContext context) {
-                  return ContentDialog(
-                    title: const Text('Wallpaper Options'),
-                    content: const Text(
-                      'What would you like to do with this wallpaper?',
                     ),
-                    actions: [
-                      Tooltip(
-                        message: 'Add to favourites',
-                        child: Button(
-                          onPressed: () {
-                            widget.appState.favouriteWallpaper(wallpaperUrl);
-                            Navigator.of(context).pop();
-                          },
-                          child: const Text('Favourite'),
-                        ),
-                      ),
-                      Tooltip(
-                        message: 'Cancel',
-                        child: Button(
-                          onPressed: () => Navigator.of(context).pop(),
-                          child: const Text('Cancel'),
-                        ),
-                      ),
-                    ],
-                  );
-                },
-              );
-            }
+                  ],
+                );
+              },
+            );
           },
           child: Image.file(file, fit: BoxFit.fill, key: ValueKey(file.path)),
         );
