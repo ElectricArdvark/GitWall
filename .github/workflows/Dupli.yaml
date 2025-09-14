@@ -1,0 +1,14 @@
+name: Duplicate check on main
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  detect-duplicates:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run jscpd
+        run: npx jscpd --reporters console .
