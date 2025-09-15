@@ -1,6 +1,9 @@
 import 'package:fluent_ui/fluent_ui.dart' hide Colors;
 import 'package:flutter/material.dart' show Colors;
 import 'package:gitwall/ui/common_widgets.dart';
+import 'package:gitwall/ui/next_wallpaper_button.dart';
+import 'package:gitwall/ui/shuffle_button.dart';
+import 'package:gitwall/ui/wallpaper_options_dialog.dart';
 import 'package:provider/provider.dart';
 import 'dart:io';
 import 'dart:convert';
@@ -139,38 +142,48 @@ class _CachedPageState extends State<CachedPage> {
 
   Widget _buildPreviewContent() {
     if (_cachedImages.isEmpty && _isLoading) {
-      return const Center(
-        child: Text('Loading...', style: TextStyle(color: Colors.white)),
-      );
+      return const LoadingWidget();
     }
     if (_hasError) {
-      return Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              'Error loading cached images: $_errorMessage',
-              style: const TextStyle(color: Colors.white),
-              textAlign: TextAlign.center,
+      return Consumer<AppState>(
+        builder: (context, appState, child) {
+          return Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'Error loading cached images: $_errorMessage',
+                  style: TextStyle(
+                    color: appState.isDarkTheme ? Colors.white : Colors.black,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 8),
+                Tooltip(
+                  message: 'Retry loading cached images',
+                  child: Button(
+                    onPressed: () => _loadCachedImages(),
+                    child: const Text('Retry'),
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(height: 8),
-            Tooltip(
-              message: 'Retry loading cached images',
-              child: Button(
-                onPressed: () => _loadCachedImages(),
-                child: const Text('Retry'),
-              ),
-            ),
-          ],
-        ),
+          );
+        },
       );
     }
     if (_cachedImages.isEmpty) {
-      return const Center(
-        child: Text(
-          'No cached wallpapers found.',
-          style: TextStyle(color: Colors.white),
-        ),
+      return Consumer<AppState>(
+        builder: (context, appState, child) {
+          return Center(
+            child: Text(
+              'No cached wallpapers found.',
+              style: TextStyle(
+                color: appState.isDarkTheme ? Colors.white : Colors.black,
+              ),
+            ),
+          );
+        },
       );
     }
     return Column(
@@ -193,48 +206,18 @@ class _CachedPageState extends State<CachedPage> {
                         item['file'].path,
                       ),
                   onSecondaryTap: () {
-                    showDialog(
-                      context: context,
-                      builder: (BuildContext context) {
-                        return ContentDialog(
-                          title: const Text('Wallpaper Options'),
-                          content: const Text(
-                            'What would you like to do with this wallpaper?',
-                          ),
-                          actions: [
-                            if (item['url'] != null)
-                              Tooltip(
-                                message: 'Add to favourites',
-                                child: Button(
-                                  onPressed: () {
-                                    widget.appState.favouriteWallpaper(
-                                      item['url'],
-                                    );
-                                    Navigator.of(context).pop();
-                                  },
-                                  child: const Text('Favourite'),
-                                ),
-                              ),
-                            Tooltip(
-                              message: 'Delete this cached wallpaper',
-                              child: Button(
-                                onPressed: () {
-                                  _deleteCachedImage(item);
-                                  Navigator.of(context).pop();
-                                },
-                                child: const Text('Delete'),
-                              ),
-                            ),
-                            Tooltip(
-                              message: 'Cancel',
-                              child: Button(
-                                onPressed: () => Navigator.of(context).pop(),
-                                child: const Text('Cancel'),
-                              ),
-                            ),
-                          ],
-                        );
+                    WallpaperOptionsDialog.show(
+                      context,
+                      url: item['url'] ?? '',
+                      canBan: false,
+                      onFavourite:
+                          item['url'] != null
+                              ? widget.appState.favouriteWallpaper
+                              : null,
+                      onRemoveFromList: (index) {
+                        _deleteCachedImage(_cachedImages[index]);
                       },
+                      itemIndex: index,
                     );
                   },
                   child: Image.file(
@@ -274,29 +257,9 @@ class _CachedPageState extends State<CachedPage> {
           previewTitle: 'Cached Wallpaper Preview:',
           extraButtons: Row(
             children: [
-              Tooltip(
-                message: 'Set next wallpaper',
-                child: Button(
-                  onPressed: () => appState.setNextWallpaper(),
-                  child: const Icon(FluentIcons.next, color: Colors.white),
-                ),
-              ),
+              NextWallpaperButton(appState: appState),
               const SizedBox(width: 8),
-              Tooltip(
-                message: 'Toggle auto shuffle',
-                child: Button(
-                  onPressed:
-                      () => appState.toggleAutoShuffle(
-                        !appState.autoShuffleEnabled,
-                      ),
-                  child: Icon(
-                    appState.autoShuffleEnabled
-                        ? FluentIcons.repeat_all
-                        : FluentIcons.repeat_one,
-                    color: Colors.white,
-                  ),
-                ),
-              ),
+              ShuffleButton(appState: appState),
               const SizedBox(width: 8),
               // Custom toggle buttons for cached page (no mutual exclusion)
               Tooltip(
@@ -311,7 +274,7 @@ class _CachedPageState extends State<CachedPage> {
                     _showFavouritesPreview
                         ? FluentIcons.heart_fill
                         : FluentIcons.heart,
-                    color: Colors.white,
+                    color: appState.isDarkTheme ? Colors.white : Colors.black,
                   ),
                 ),
               ),
@@ -328,7 +291,7 @@ class _CachedPageState extends State<CachedPage> {
                     _showBannedPreview
                         ? FluentIcons.block_contact
                         : FluentIcons.blocked,
-                    color: Colors.white,
+                    color: appState.isDarkTheme ? Colors.white : Colors.black,
                   ),
                 ),
               ),

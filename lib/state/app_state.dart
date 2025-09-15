@@ -97,6 +97,9 @@ class AppState extends ChangeNotifier {
   bool _startMinimizedEnabled = false;
   bool get startMinimizedEnabled => _startMinimizedEnabled;
 
+  bool _isDarkTheme = true;
+  bool get isDarkTheme => _isDarkTheme;
+
   Timer? _timer;
 
   // Used wallpapers for cycling, key is tab, value is list of uniqueIds
@@ -171,6 +174,7 @@ class AppState extends ChangeNotifier {
     _useOnlyFavouritesEnabled = await _settingsService.getUseOnlyFavourites();
     _closeToTrayEnabled = await _settingsService.isCloseToTrayEnabled();
     _startMinimizedEnabled = await _settingsService.isStartMinimizedEnabled();
+    _isDarkTheme = await _settingsService.getThemeMode();
     _usedWallpapers = await _settingsService.getUsedWallpapers();
     _bannedWallpapers = await _bannedWallpapersService.getBannedWallpapers();
     _favouriteWallpapers =
@@ -226,14 +230,16 @@ class AppState extends ChangeNotifier {
   }
 
   Future<void> setActiveTab(String tab) async {
+    final wasWeekly = _activeTab == 'Weekly';
     _activeTab = tab;
     await _settingsService.saveActiveTab(tab);
     notifyListeners();
-    if (_activeTab == 'Weekly') {
-      await updateWallpaper(isManual: false);
-    }
     // Restart scheduler when tab changes to handle Weekly tab shuffling
     _startScheduler();
+    // Reset wallpaper when switching to Weekly tab from another tab
+    if (tab == 'Weekly' && !wasWeekly) {
+      await updateWallpaper(isManual: false);
+    }
   }
 
   Future<void> toggleAutostart(bool enabled) async {
@@ -271,6 +277,12 @@ class AppState extends ChangeNotifier {
   Future<void> toggleUseOnlyFavourites(bool enabled) async {
     _useOnlyFavouritesEnabled = enabled;
     await _settingsService.setUseOnlyFavourites(enabled);
+    notifyListeners();
+  }
+
+  Future<void> toggleTheme(bool isDark) async {
+    _isDarkTheme = isDark;
+    await _settingsService.setThemeMode(isDark);
     notifyListeners();
   }
 
@@ -427,13 +439,11 @@ class AppState extends ChangeNotifier {
 
           _updateStatus("Downloading wallpaper for $day ($resolution)$ext...");
           try {
-            final cacheDirPath = await getCacheDirectoryPath();
             downloadResult = await _githubService.downloadWallpaper(
               repoUrlToUse,
               day,
               resolution,
               ext,
-              customCacheDir: cacheDirPath,
             );
 
             savedFile = downloadResult.file;
@@ -777,13 +787,14 @@ class AppState extends ChangeNotifier {
     }
   }
 
-  /// Sets the next wallpaper in the cycle for Multi, Custom, and Saved tabs
+  /// Sets the next wallpaper in the cycle for Multi, Custom, Saved, and Weekly tabs
   Future<void> setNextWallpaper() async {
     if (_activeTab != 'Multi' &&
         _activeTab != 'Custom' &&
-        _activeTab != 'Saved') {
+        _activeTab != 'Saved' &&
+        _activeTab != 'Weekly') {
       _updateStatus(
-        "Next wallpaper only available for Multi, Custom, and Saved tabs",
+        "Next wallpaper only available for Multi, Custom, Saved, and Weekly tabs",
       );
       return;
     }
@@ -806,6 +817,10 @@ class AppState extends ChangeNotifier {
             _updateStatus("Custom repository URL is not set.");
             return;
           }
+          break;
+        case 'Weekly':
+          repoUrlToUse = defaultRepoUrl;
+          effectiveDay = getCurrentDay().toLowerCase();
           break;
         case 'Saved':
           // For Saved tab, we cycle through cached images
@@ -1484,5 +1499,71 @@ class AppState extends ChangeNotifier {
     } catch (e) {
       _updateStatus("Error setting next cached wallpaper: ${e.toString()}");
     }
+  }
+
+  /// Gets cached wallpaper URLs for a specific repository and day
+  Future<List<String>> getCachedWallpaperUrls(
+    String repoUrl,
+    String day,
+    String resolution,
+  ) async {
+    final cachedUrls = <String>[];
+
+    try {
+      // Get all cached files from the cache manager
+      final cacheDirPath = await getCacheDirectoryPath();
+      final cacheDir = Directory(cacheDirPath);
+
+      if (!await cacheDir.exists()) {
+        return cachedUrls;
+      }
+
+      // List all files in cache directory
+      final files =
+          cacheDir.listSync().where((file) => file is File).cast<File>();
+
+      for (final file in files) {
+        final fileName = file.path.split(Platform.pathSeparator).last;
+
+        // Check if this file corresponds to the requested repo/day/resolution
+        // We need to reconstruct the URL pattern that would match this file
+        for (final ext in supportedImageExtensions) {
+          // Try different possible filename patterns
+          final possibleFileNames = [
+            '${day}_$resolution$ext', // Weekly format: monday_1920x1080.jpg
+            '${resolution}_$fileName', // Multi/Custom format variations
+            fileName, // Direct filename match
+          ];
+
+          for (final possibleName in possibleFileNames) {
+            // Construct the expected GitHub URL
+            final expectedUrl = '$repoUrl/raw/main/$day/$possibleName';
+
+            try {
+              // Check if this URL is cached and matches our file
+              final cachedFileInfo = await _customCacheManager.getFileFromCache(
+                expectedUrl,
+              );
+              if (cachedFileInfo != null &&
+                  cachedFileInfo.file.existsSync() &&
+                  cachedFileInfo.file.path == file.path) {
+                cachedUrls.add(expectedUrl);
+                break;
+              }
+            } catch (e) {
+              // Continue checking other patterns
+            }
+          }
+
+          if (cachedUrls.isNotEmpty && cachedUrls.last.contains(fileName)) {
+            break; // Found a match for this file
+          }
+        }
+      }
+    } catch (e) {
+      print('Error getting cached wallpaper URLs: $e');
+    }
+
+    return cachedUrls;
   }
 }

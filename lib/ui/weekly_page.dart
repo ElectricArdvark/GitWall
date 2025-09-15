@@ -1,6 +1,10 @@
 import 'package:fluent_ui/fluent_ui.dart' hide Colors;
 import 'package:flutter/material.dart' show Colors;
 import 'package:gitwall/ui/common_widgets.dart';
+import 'package:gitwall/ui/next_wallpaper_button.dart';
+import 'package:gitwall/ui/shuffle_button.dart';
+import 'package:gitwall/ui/wallpaper_options_dialog.dart';
+import 'package:provider/provider.dart';
 import 'dart:io';
 import 'dart:convert';
 import 'package:path_provider/path_provider.dart';
@@ -25,33 +29,17 @@ class _WeeklyPageState extends State<WeeklyPage> {
       previewTitle: 'Wallpaper Preview:',
       extraButtons:
           _showFavouritesPreview
-              ? Row(
-                children: [
-                  Tooltip(
-                    message: 'Set next wallpaper',
-                    child: Button(
-                      onPressed: () => widget.appState.setNextWallpaper(),
-                      child: const Icon(FluentIcons.next, color: Colors.white),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Tooltip(
-                    message: 'Toggle auto shuffle',
-                    child: Button(
-                      onPressed:
-                          () => widget.appState.toggleAutoShuffle(
-                            !widget.appState.autoShuffleEnabled,
-                          ),
-                      child: Icon(
-                        widget.appState.autoShuffleEnabled
-                            ? FluentIcons.repeat_all
-                            : FluentIcons.repeat_one,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                ],
+              ? Consumer<AppState>(
+                builder: (context, appState, child) {
+                  return Row(
+                    children: [
+                      NextWallpaperButton(appState: appState),
+                      const SizedBox(width: 8),
+                      ShuffleButton(appState: appState),
+                      const SizedBox(width: 8),
+                    ],
+                  );
+                },
               )
               : null,
       previewContent:
@@ -85,49 +73,64 @@ class _WeeklyPageState extends State<WeeklyPage> {
       future: _getWallpaperPreviewData(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(
-            child: Text('Loading...', style: TextStyle(color: Colors.white)),
+          return Consumer<AppState>(
+            builder: (context, appState, child) {
+              return Center(
+                child: Text(
+                  'Loading...',
+                  style: TextStyle(
+                    color: appState.isDarkTheme ? Colors.white : Colors.black,
+                  ),
+                ),
+              );
+            },
           );
         }
 
         final data = snapshot.data;
         if (data == null || data['file'] == null) {
           // No internet and no cached wallpaper available
-          return Center(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Text(
-                  'No Internet Available',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
-                  textAlign: TextAlign.center,
+          return Consumer<AppState>(
+            builder: (context, appState, child) {
+              return Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'No Internet Available',
+                      style: TextStyle(
+                        color:
+                            appState.isDarkTheme ? Colors.white : Colors.black,
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 8),
+                    Tooltip(
+                      message: 'Switch to saved wallpapers',
+                      child: Button(
+                        onPressed: () {
+                          // Navigate to cached page (Saved tab)
+                          widget.appState.setActiveTab('Saved');
+                        },
+                        child: const Text('Use Saved Wallpapers Instead'),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Tooltip(
+                      message: 'Retry loading wallpaper',
+                      child: Button(
+                        onPressed:
+                            () =>
+                                widget.appState.updateWallpaper(isManual: true),
+                        child: const Text('Retry'),
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 8),
-                Tooltip(
-                  message: 'Switch to saved wallpapers',
-                  child: Button(
-                    onPressed: () {
-                      // Navigate to cached page (Saved tab)
-                      widget.appState.setActiveTab('Saved');
-                    },
-                    child: const Text('Use Saved Wallpapers Instead'),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Tooltip(
-                  message: 'Retry loading wallpaper',
-                  child: Button(
-                    onPressed:
-                        () => widget.appState.updateWallpaper(isManual: true),
-                    child: const Text('Retry'),
-                  ),
-                ),
-              ],
-            ),
+              );
+            },
           );
         }
 
@@ -146,35 +149,11 @@ class _WeeklyPageState extends State<WeeklyPage> {
                 'https://raw.githubusercontent.com/ElectricArdvark/GitWall-WP/main/Weekly/$capitalizedDay/${capitalizedDay}_$resolution.$extension';
 
             final urlToFavourite = wallpaperUrl ?? fallbackUrl;
-            showDialog(
-              context: context,
-              builder: (BuildContext context) {
-                return ContentDialog(
-                  title: const Text('Wallpaper Options'),
-                  content: const Text(
-                    'What would you like to do with this wallpaper?',
-                  ),
-                  actions: [
-                    Tooltip(
-                      message: 'Add to favourites',
-                      child: Button(
-                        onPressed: () {
-                          widget.appState.favouriteWallpaper(urlToFavourite);
-                          Navigator.of(context).pop();
-                        },
-                        child: const Text('Favourite'),
-                      ),
-                    ),
-                    Tooltip(
-                      message: 'Cancel',
-                      child: Button(
-                        onPressed: () => Navigator.of(context).pop(),
-                        child: const Text('Cancel'),
-                      ),
-                    ),
-                  ],
-                );
-              },
+            WallpaperOptionsDialog.show(
+              context,
+              url: urlToFavourite,
+              canBan: false,
+              onFavourite: widget.appState.favouriteWallpaper,
             );
           },
           child: Image.file(file, fit: BoxFit.fill, key: ValueKey(file.path)),
@@ -225,62 +204,59 @@ class _WeeklyPageState extends State<WeeklyPage> {
   }
 
   Future<Map<String, dynamic>> _getWallpaperPreviewData() async {
-    // Check internet connectivity
-    final isInternetAvailable = await widget.appState.isInternetAvailable();
-
-    if (isInternetAvailable) {
-      // Internet available - use current wallpaper file if it exists
-      if (widget.appState.currentWallpaperFile != null &&
-          widget.appState.currentWallpaperFile!.existsSync()) {
-        final url = await _getWallpaperUrl(
-          widget.appState.currentWallpaperFile!,
-        );
-        return {'file': widget.appState.currentWallpaperFile, 'url': url};
-      }
-      // No current wallpaper file
-      return {};
+    // If a wallpaper is already set, display it
+    if (widget.appState.currentWallpaperFile != null &&
+        widget.appState.currentWallpaperFile!.existsSync()) {
+      final url = await _getWallpaperUrl(widget.appState.currentWallpaperFile!);
+      return {'file': widget.appState.currentWallpaperFile, 'url': url};
     }
 
-    // No internet - try to find cached weekly wallpaper for current day
-    final day = _getCurrentDay();
+    // If no wallpaper is set, check for internet
+    final isInternetAvailable = await widget.appState.isInternetAvailable();
+    if (!isInternetAvailable) {
+      // No internet - try to find cached weekly wallpaper for current day
+      final day = _getCurrentDay();
 
-    try {
-      // Load cache metadata to find cached weekly wallpapers
-      final appDataDir = await getApplicationSupportDirectory();
-      final cacheJsonFile = File('${appDataDir.path}\\gitwall_cache.json');
+      try {
+        // Load cache metadata to find cached weekly wallpapers
+        final appDataDir = await getApplicationSupportDirectory();
+        final cacheJsonFile = File('${appDataDir.path}\\gitwall_cache.json');
 
-      if (!await cacheJsonFile.exists()) {
-        return {};
-      }
+        if (!await cacheJsonFile.exists()) {
+          return {};
+        }
 
-      final cacheJson = await cacheJsonFile.readAsString();
-      final List<dynamic> cacheData = jsonDecode(cacheJson);
+        final cacheJson = await cacheJsonFile.readAsString();
+        final List<dynamic> cacheData = jsonDecode(cacheJson);
 
-      // Look for weekly wallpapers that match the current day
-      for (final entry in cacheData) {
-        final url = entry['url'] as String?;
-        final relativePath = entry['relativePath'] as String?;
+        // Look for weekly wallpapers that match the current day
+        for (final entry in cacheData) {
+          final url = entry['url'] as String?;
+          final relativePath = entry['relativePath'] as String?;
 
-        if (url != null && relativePath != null) {
-          // Check if this is a weekly wallpaper for the current day
-          if (url.contains('/Weekly/') &&
-              url.toLowerCase().contains('/${day}/')) {
-            // Try to get the cached file using the cache manager
-            final cachedFileInfo = await widget.appState.customCacheManager
-                .getFileFromCache(url);
+          if (url != null && relativePath != null) {
+            // Check if this is a weekly wallpaper for the current day
+            if (url.contains('/Weekly/') &&
+                url.toLowerCase().contains('/${day}/')) {
+              // Try to get the cached file using the cache manager
+              final cachedFileInfo = await widget.appState.customCacheManager
+                  .getFileFromCache(url);
 
-            if (cachedFileInfo != null && cachedFileInfo.file.existsSync()) {
-              return {'file': cachedFileInfo.file, 'url': url};
+              if (cachedFileInfo != null && cachedFileInfo.file.existsSync()) {
+                return {'file': cachedFileInfo.file, 'url': url};
+              }
             }
           }
         }
-      }
 
-      // No cached wallpaper found for current day
-      return {};
-    } catch (e) {
-      return {};
+        // No cached wallpaper found for current day
+        return {};
+      } catch (e) {
+        return {};
+      }
     }
+    // No current wallpaper, but internet is available
+    return {};
   }
 
   String _getCurrentDay() {

@@ -18,7 +18,10 @@ class _WelcomePageState extends State<WelcomePage> {
     return Consumer<AppState>(
       builder: (context, appState, child) {
         return Container(
-          color: const Color(0xFF1F2A29),
+          color:
+              appState.isDarkTheme
+                  ? const Color(0xFF1F2A29)
+                  : const Color(0xFFF5F5F5),
           child: Stack(
             children: [
               Positioned(
@@ -44,36 +47,41 @@ class _WelcomePageState extends State<WelcomePage> {
                     const SizedBox(height: 30),
 
                     // App Name
-                    const Text(
+                    Text(
                       'GitWall',
                       style: TextStyle(
                         fontSize: 42,
                         fontWeight: FontWeight.bold,
-                        color: Colors.white,
+                        color:
+                            appState.isDarkTheme ? Colors.white : Colors.black,
                       ),
                     ),
                     const SizedBox(height: 15),
 
                     // Welcome Text
-                    const Text(
+                    Text(
                       'Welcome to GitWall',
                       style: TextStyle(
                         fontSize: 20,
-                        color: Colors.white,
+                        color:
+                            appState.isDarkTheme ? Colors.white : Colors.black,
                         fontWeight: FontWeight.w300,
                       ),
                     ),
                     const SizedBox(height: 40),
 
                     // Description
-                    const SizedBox(
+                    SizedBox(
                       width: 400,
                       child: Text(
                         'Your modern desktop wallpaper changer.\nEasily set and manage wallpapers from various GitHub repositories.',
                         textAlign: TextAlign.center,
                         style: TextStyle(
                           fontSize: 16,
-                          color: Colors.white70,
+                          color:
+                              appState.isDarkTheme
+                                  ? Colors.white70
+                                  : Colors.black54,
                           height: 1.5,
                         ),
                       ),

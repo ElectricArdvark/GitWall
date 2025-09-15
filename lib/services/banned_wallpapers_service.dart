@@ -147,72 +147,121 @@ class BannedWallpapersService {
   ) {
     final banned = bannedWallpapers[tabKey] ?? [];
     if (banned.isEmpty) {
-      return const Center(
+      return Center(
         child: Text(
           'No banned wallpapers yet.',
-          style: TextStyle(color: Colors.white),
+          style: TextStyle(
+            color: appState.isDarkTheme ? Colors.white : Colors.black,
+          ),
         ),
       );
     }
-    return GridView.builder(
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        childAspectRatio: 1.5,
-      ),
-      itemCount: banned.length,
-      itemBuilder: (context, index) {
-        final bannedWallpaper = banned[index];
-        return Padding(
-          padding: const EdgeInsets.all(4.0),
-          child: GestureDetector(
-            onTap: () => appState.setWallpaperForUrl(bannedWallpaper['url']!),
-            onSecondaryTap: () {
-              showDialog(
-                context: context,
-                builder:
-                    (context) => ContentDialog(
-                      title: const Text('Unban Wallpaper?'),
-                      content: const Text(
-                        'Would you like to unban this wallpaper?',
-                      ),
-                      actions: [
-                        Button(
-                          onPressed: () {
-                            appState.unbanWallpaper(
-                              bannedWallpaper['uniqueId']!,
-                            );
-                            Navigator.of(context).pop();
-                            setState(() {}); // Rebuild to reflect changes
-                          },
-                          child: const Text('Unban'),
-                        ),
-                        Button(
-                          onPressed: () => Navigator.of(context).pop(),
-                          child: const Text('Cancel'),
-                        ),
-                      ],
-                    ),
-              );
-            },
-            child: Image.network(
-              bannedWallpaper['url']!,
-              fit: BoxFit.cover,
-              loadingBuilder: (context, child, loadingProgress) {
-                if (loadingProgress == null) return child;
-                return const Center(
-                  child: Text(
-                    'Loading...',
-                    style: TextStyle(color: Colors.white),
+
+    // Check if internet is available
+    return FutureBuilder<bool>(
+      future: appState.isInternetAvailable(),
+      builder: (context, snapshot) {
+        final isOnline = snapshot.data ?? true; // Default to true while loading
+
+        if (!isOnline) {
+          // Offline: show message that banned wallpapers are not cached
+          return Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'Banned wallpapers are not cached.',
+                  style: TextStyle(
+                    color: appState.isDarkTheme ? Colors.white : Colors.black,
+                    fontSize: 16,
                   ),
-                );
-              },
-              errorBuilder: (context, error, stackTrace) {
-                return const Center(
-                  child: Icon(FluentIcons.error, color: Colors.white),
-                );
-              },
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 16),
+                Tooltip(
+                  message: 'Check connection and retry',
+                  child: Button(
+                    onPressed: () => setState(() {}),
+                    child: const Text('Retry'),
+                  ),
+                ),
+              ],
             ),
+          );
+        }
+
+        // Online: show the grid of banned wallpapers
+        return GridView.builder(
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 2,
+            childAspectRatio: 1.5,
           ),
+          itemCount: banned.length,
+          itemBuilder: (context, index) {
+            final bannedWallpaper = banned[index];
+            return Padding(
+              padding: const EdgeInsets.all(4.0),
+              child: GestureDetector(
+                onTap:
+                    () => appState.setWallpaperForUrl(bannedWallpaper['url']!),
+                onSecondaryTap: () {
+                  showDialog(
+                    context: context,
+                    builder:
+                        (context) => ContentDialog(
+                          title: const Text('Unban Wallpaper?'),
+                          content: const Text(
+                            'Would you like to unban this wallpaper?',
+                          ),
+                          actions: [
+                            Button(
+                              onPressed: () {
+                                appState.unbanWallpaper(
+                                  bannedWallpaper['uniqueId']!,
+                                );
+                                Navigator.of(context).pop();
+                                setState(() {}); // Rebuild to reflect changes
+                              },
+                              child: const Text('Unban'),
+                            ),
+                            Button(
+                              onPressed: () => Navigator.of(context).pop(),
+                              child: const Text('Cancel'),
+                            ),
+                          ],
+                        ),
+                  );
+                },
+                child: Image.network(
+                  bannedWallpaper['url']!,
+                  fit: BoxFit.cover,
+                  loadingBuilder: (context, child, loadingProgress) {
+                    if (loadingProgress == null) return child;
+                    return Center(
+                      child: Text(
+                        'Loading...',
+                        style: TextStyle(
+                          color:
+                              appState.isDarkTheme
+                                  ? Colors.white
+                                  : Colors.black,
+                        ),
+                      ),
+                    );
+                  },
+                  errorBuilder: (context, error, stackTrace) {
+                    return Center(
+                      child: Icon(
+                        FluentIcons.error,
+                        color:
+                            appState.isDarkTheme ? Colors.white : Colors.black,
+                      ),
+                    );
+                  },
+                ),
+              ),
+            );
+          },
         );
       },
     );

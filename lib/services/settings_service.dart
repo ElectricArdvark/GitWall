@@ -23,6 +23,7 @@ class SettingsService {
   static const _useOnlyFavouritesKey = 'use_only_favourites_enabled';
   static const _jasonscrKey = 'json_script_registry';
   static const _currentWeeklyWallpaperKey = 'current_weekly_wallpaper_path';
+  static const _themeModeKey = 'theme_mode';
 
   Future<void> setCloseToTray(bool isEnabled) async {
     final prefs = await SharedPreferences.getInstance();
@@ -221,5 +222,15 @@ class SettingsService {
   Future<String?> getCurrentWeeklyWallpaperPath() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getString(_currentWeeklyWallpaperKey);
+  }
+
+  Future<void> setThemeMode(bool isDark) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_themeModeKey, isDark);
+  }
+
+  Future<bool> getThemeMode() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_themeModeKey) ?? true; // Default to dark theme
   }
 }

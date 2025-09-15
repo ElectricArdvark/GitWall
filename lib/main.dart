@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import 'package:tray_manager/tray_manager.dart';
 import 'package:window_manager/window_manager.dart';
 import 'constants.dart';
+import 'themes.dart';
 import 'ui/base_page.dart';
 
 // Entry point of the application
@@ -23,7 +24,7 @@ void main() async {
   // Configure the desktop window appearance and behavior when ready
   doWhenWindowReady(() {
     // Set the initial window dimensions
-    const initialSize = Size(1000, 500);
+    const initialSize = Size(1000, 575);
     // Set minimum and current window size
     appWindow.minSize = initialSize; //Size(800, 445);
     appWindow.size = initialSize;
@@ -86,19 +87,19 @@ class _MyAppState extends State<MyApp> with WindowListener, TrayListener {
   Widget build(BuildContext context) {
     // Provide the AppState to the entire widget tree using Provider pattern
     // This allows all child widgets to access and react to app state changes
-    return FluentApp(
-      // Set application title from constants
-      title: appTitle,
-      // Configure Fluent UI dark theme
-      theme: FluentThemeData(
-        brightness: Brightness.dark,
-        accentColor: Colors.blue,
-        visualDensity: VisualDensity.standard,
-      ),
-      // Set the initial home page
-      home: const BasePage(),
-      // Hide debug banner in development
-      debugShowCheckedModeBanner: false,
+    return Consumer<AppState>(
+      builder: (context, appState, child) {
+        return FluentApp(
+          // Set application title from constants
+          title: appTitle,
+          // Configure Fluent UI theme based on user preference
+          theme: getFluentTheme(appState.isDarkTheme),
+          // Set the initial home page
+          home: const BasePage(),
+          // Hide debug banner in development
+          debugShowCheckedModeBanner: false,
+        );
+      },
     );
   }
 

@@ -1,12 +1,12 @@
 import 'package:bitsdojo_window/bitsdojo_window.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:fluent_ui/fluent_ui.dart' hide Colors, Scrollbar;
-import 'package:flutter/material.dart'
-    show Theme, ThemeData, Colors, Scaffold, Scrollbar;
+import 'package:flutter/material.dart' show Theme, Colors, Scaffold, Scrollbar;
 import 'package:gitwall/ui/common_widgets.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../state/app_state.dart';
+import '../themes.dart';
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
@@ -57,17 +57,16 @@ class _SettingsPageState extends State<SettingsPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Theme(
-      data: ThemeData(
-        brightness: Brightness.dark,
-        scaffoldBackgroundColor: const Color(0xFF1F2A29),
-        cardColor: const Color(0xFF2D3A3A),
-      ),
-      child: Scaffold(
-        backgroundColor: const Color(0xFF1F2A29),
-        body: Consumer<AppState>(
-          builder: (context, appState, child) {
-            return Column(
+    return Consumer<AppState>(
+      builder: (context, appState, child) {
+        return Theme(
+          data: getMaterialTheme(appState.isDarkTheme),
+          child: Scaffold(
+            backgroundColor:
+                appState.isDarkTheme
+                    ? const Color(0xFF1F2A29)
+                    : const Color(0xFFF5F5F5),
+            body: Column(
               children: [
                 WindowTitleBarBox(
                   child: Row(
@@ -94,6 +93,30 @@ class _SettingsPageState extends State<SettingsPage> {
                             _SettingsCard(
                               title: 'General',
                               children: [
+                                _SettingsItem(
+                                  label: 'Theme',
+                                  child: ComboBox<String>(
+                                    value:
+                                        appState.isDarkTheme ? 'Dark' : 'Light',
+                                    items: [
+                                      ComboBoxItem<String>(
+                                        value: 'Dark',
+                                        child: const Text('Dark'),
+                                      ),
+                                      ComboBoxItem<String>(
+                                        value: 'Light',
+                                        child: const Text('Light'),
+                                      ),
+                                    ],
+                                    onChanged: (String? newValue) {
+                                      if (newValue != null) {
+                                        appState.toggleTheme(
+                                          newValue == 'Dark',
+                                        );
+                                      }
+                                    },
+                                  ),
+                                ),
                                 _SettingsItem(
                                   label: 'Run on startup',
                                   child: ToggleSwitch(
@@ -276,10 +299,10 @@ class _SettingsPageState extends State<SettingsPage> {
                   ),
                 ),
               ],
-            );
-          },
-        ),
-      ),
+            ),
+          ),
+        );
+      },
     );
   }
 }
@@ -292,26 +315,33 @@ class _SettingsCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.only(bottom: 8.0),
-          child: Text(
-            title,
-            style: const TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
+    return Consumer<AppState>(
+      builder: (context, appState, child) {
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8.0),
+              child: Text(
+                title,
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: appState.isDarkTheme ? Colors.white : Colors.black,
+                ),
+              ),
             ),
-          ),
-        ),
-        Card(
-          backgroundColor: const Color(0xFF2D3A3A),
-          padding: const EdgeInsets.all(16.0),
-          child: Column(children: children),
-        ),
-      ],
+            Card(
+              backgroundColor:
+                  appState.isDarkTheme
+                      ? const Color(0xFF2D3A3A)
+                      : const Color(0xFFE0E0E0),
+              padding: const EdgeInsets.all(16.0),
+              child: Column(children: children),
+            ),
+          ],
+        );
+      },
     );
   }
 }
@@ -324,18 +354,25 @@ class _SettingsItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8.0),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(
-            label,
-            style: const TextStyle(color: Colors.white, fontSize: 16),
+    return Consumer<AppState>(
+      builder: (context, appState, child) {
+        return Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8.0),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                label,
+                style: TextStyle(
+                  color: appState.isDarkTheme ? Colors.white : Colors.black,
+                  fontSize: 16,
+                ),
+              ),
+              SizedBox(width: 150, child: this.child),
+            ],
           ),
-          SizedBox(width: 150, child: child),
-        ],
-      ),
+        );
+      },
     );
   }
 }

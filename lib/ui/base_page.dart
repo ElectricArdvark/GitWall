@@ -112,8 +112,10 @@ class _BasePageState extends State<BasePage> {
   }
 }
 
-const borderColor = Color(0xFF1F2A29);
-var leftsidebarColor = const Color(0xFF1F2A29);
+Color getBorderColor(bool isDark) =>
+    isDark ? const Color(0xFF1F2A29) : const Color(0xFFE0E0E0);
+Color getLeftSidebarColor(bool isDark) =>
+    isDark ? const Color(0xFF1F2A29) : const Color(0xFFF5F5F5);
 
 class LeftSideZone extends StatelessWidget {
   final int navigationIndex;
@@ -132,21 +134,24 @@ class LeftSideZone extends StatelessWidget {
     return SizedBox(
       width: 252, // Fixed width for the left sidebar
       child: Container(
-        color: leftsidebarColor,
+        color: getLeftSidebarColor(appState.isDarkTheme),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Draggable window title bar area
             WindowTitleBarBox(child: SizedBox(height: 48, child: MoveWindow())),
             // App title in the sidebar
-            const Padding(
+            Padding(
               padding: EdgeInsets.only(left: 75.0, top: 16.0, bottom: 32.0),
               child: Text(
                 'GitWall',
                 style: TextStyle(
                   fontSize: 28,
                   fontWeight: FontWeight.bold,
-                  color: Color(0xFFFFFFFF),
+                  color:
+                      appState.isDarkTheme
+                          ? const Color(0xFFFFFFFF)
+                          : const Color(0xFF000000),
                 ),
               ),
             ),
@@ -166,6 +171,7 @@ class LeftSideZone extends StatelessWidget {
                         appState.setShowWelcomeInRightSide(true);
                         onNavigationChanged(0);
                       },
+                      isDarkTheme: appState.isDarkTheme,
                     ),
                     _NavigationItem(
                       icon: FluentIcons.settings,
@@ -175,6 +181,7 @@ class LeftSideZone extends StatelessWidget {
                         appState.hideWelcomeInRightSide();
                         onNavigationChanged(1);
                       },
+                      isDarkTheme: appState.isDarkTheme,
                     ),
                     const SizedBox(height: 24),
                     // Tab selection buttons
@@ -189,6 +196,7 @@ class LeftSideZone extends StatelessWidget {
                         appState.setActiveTab('Weekly');
                         onNavigationChanged(0);
                       },
+                      isDarkTheme: appState.isDarkTheme,
                     ),
                     _NavigationItem(
                       icon: FluentIcons.slideshow,
@@ -200,6 +208,7 @@ class LeftSideZone extends StatelessWidget {
                         appState.setActiveTab('Multi');
                         onNavigationChanged(0);
                       },
+                      isDarkTheme: appState.isDarkTheme,
                     ),
                     _NavigationItem(
                       icon: FluentIcons.edit_create,
@@ -212,6 +221,7 @@ class LeftSideZone extends StatelessWidget {
                         appState.setActiveTab('Custom');
                         onNavigationChanged(0);
                       },
+                      isDarkTheme: appState.isDarkTheme,
                     ),
                     _NavigationItem(
                       icon: FluentIcons.download,
@@ -223,6 +233,7 @@ class LeftSideZone extends StatelessWidget {
                         appState.setActiveTab('Saved');
                         onNavigationChanged(0);
                       },
+                      isDarkTheme: appState.isDarkTheme,
                     ),
                   ],
                 ),
@@ -242,8 +253,11 @@ class LeftSideZone extends StatelessWidget {
                   if (!appState.hideStatus)
                     Text(
                       'Status: ${appState.status}',
-                      style: const TextStyle(
-                        color: Color(0xFFFFFFFF),
+                      style: TextStyle(
+                        color:
+                            appState.isDarkTheme
+                                ? const Color(0xFFFFFFFF)
+                                : const Color(0xFF000000),
                         fontSize: 12,
                       ),
                     ),
@@ -301,12 +315,14 @@ class _NavigationItem extends StatelessWidget {
   final String text;
   final bool isSelected;
   final VoidCallback onTap;
+  final bool isDarkTheme;
 
   const _NavigationItem({
     required this.icon,
     required this.text,
     required this.isSelected,
     required this.onTap,
+    required this.isDarkTheme,
   });
 
   @override
@@ -319,16 +335,34 @@ class _NavigationItem extends StatelessWidget {
           margin: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 4.0),
           padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
           decoration: BoxDecoration(
-            color: isSelected ? const Color(0xFF2D3A3A) : null,
+            color:
+                isSelected
+                    ? (isDarkTheme
+                        ? const Color(0xFF2D3A3A)
+                        : const Color(0xFFE0E0E0))
+                    : null,
             borderRadius: BorderRadius.circular(8.0),
           ),
           child: Row(
             children: [
-              Icon(icon, color: const Color(0xFFFFFFFF), size: 20),
+              Icon(
+                icon,
+                color:
+                    isDarkTheme
+                        ? const Color(0xFFFFFFFF)
+                        : const Color(0xFF000000),
+                size: 20,
+              ),
               const SizedBox(width: 16),
               Text(
                 text,
-                style: const TextStyle(fontSize: 16, color: Color(0xFFFFFFFF)),
+                style: TextStyle(
+                  fontSize: 16,
+                  color:
+                      isDarkTheme
+                          ? const Color(0xFFFFFFFF)
+                          : const Color(0xFF000000),
+                ),
               ),
             ],
           ),

@@ -155,20 +155,25 @@ class FavouriteWallpapersService {
                       appState.toggleUseOnlyFavourites(value);
                       setState(() {});
                     },
-                    child: const Text(
+                    child: Text(
                       'Set favourite as wallpaper',
-                      style: TextStyle(color: Colors.white),
+                      style: TextStyle(
+                        color:
+                            appState.isDarkTheme ? Colors.white : Colors.black,
+                      ),
                     ),
                   ),
                 ),
               ],
             ),
           ),
-          const Expanded(
+          Expanded(
             child: Center(
               child: Text(
                 'No favourite wallpapers yet.',
-                style: TextStyle(color: Colors.white),
+                style: TextStyle(
+                  color: appState.isDarkTheme ? Colors.white : Colors.black,
+                ),
               ),
             ),
           ),
@@ -194,9 +199,11 @@ class FavouriteWallpapersService {
                     appState.toggleUseOnlyFavourites(value);
                     setState(() {});
                   },
-                  child: const Text(
+                  child: Text(
                     'Set favourite as wallpaper',
-                    style: TextStyle(color: Colors.white),
+                    style: TextStyle(
+                      color: appState.isDarkTheme ? Colors.white : Colors.black,
+                    ),
                   ),
                 ),
               ),
@@ -251,10 +258,15 @@ class FavouriteWallpapersService {
                     ),
                     builder: (context, snapshot) {
                       if (snapshot.connectionState == ConnectionState.waiting) {
-                        return const Center(
+                        return Center(
                           child: Text(
                             'Loading...',
-                            style: TextStyle(color: Colors.white),
+                            style: TextStyle(
+                              color:
+                                  appState.isDarkTheme
+                                      ? Colors.white
+                                      : Colors.black,
+                            ),
                           ),
                         );
                       }
@@ -276,18 +288,26 @@ class FavouriteWallpapersService {
                                 loadingProgress,
                               ) {
                                 if (loadingProgress == null) return child;
-                                return const Center(
+                                return Center(
                                   child: Text(
                                     'Loading...',
-                                    style: TextStyle(color: Colors.white),
+                                    style: TextStyle(
+                                      color:
+                                          appState.isDarkTheme
+                                              ? Colors.white
+                                              : Colors.black,
+                                    ),
                                   ),
                                 );
                               },
                               errorBuilder: (context, error, stackTrace) {
-                                return const Center(
+                                return Center(
                                   child: Icon(
                                     FluentIcons.error,
-                                    color: Colors.white,
+                                    color:
+                                        appState.isDarkTheme
+                                            ? Colors.white
+                                            : Colors.black,
                                   ),
                                 );
                               },
@@ -301,18 +321,26 @@ class FavouriteWallpapersService {
                           fit: BoxFit.cover,
                           loadingBuilder: (context, child, loadingProgress) {
                             if (loadingProgress == null) return child;
-                            return const Center(
+                            return Center(
                               child: Text(
                                 'Loading...',
-                                style: TextStyle(color: Colors.white),
+                                style: TextStyle(
+                                  color:
+                                      appState.isDarkTheme
+                                          ? Colors.white
+                                          : Colors.black,
+                                ),
                               ),
                             );
                           },
                           errorBuilder: (context, error, stackTrace) {
-                            return const Center(
+                            return Center(
                               child: Icon(
                                 FluentIcons.error,
-                                color: Colors.white,
+                                color:
+                                    appState.isDarkTheme
+                                        ? Colors.white
+                                        : Colors.black,
                               ),
                             );
                           },

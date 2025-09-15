@@ -1,42 +1,69 @@
 import 'package:bitsdojo_window/bitsdojo_window.dart';
 import 'package:fluent_ui/fluent_ui.dart' hide Colors;
 import 'package:flutter/material.dart' show Colors;
-
-var buttonColors = WindowButtonColors(
-  iconNormal: const Color(0xFFFFFFFF),
-  mouseOver: const Color(0xFF2D3A3A),
-  mouseDown: const Color(0xFF1F2A29),
-  iconMouseOver: const Color(0xFFFFFFFF),
-  iconMouseDown: const Color(0xFFFFFFFF),
-);
-
-var closeButtonColors = WindowButtonColors(
-  mouseOver: const Color(0xFFD32F2F),
-  mouseDown: const Color(0xFFB71C1C),
-  iconNormal: const Color(0xFFFFFFFF),
-  iconMouseOver: const Color(0xFFFFFFFF),
-);
+import 'package:provider/provider.dart';
+import '../state/app_state.dart';
 
 class WindowButtons extends StatelessWidget {
   const WindowButtons({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Tooltip(
-          message: 'Minimize',
-          child: MinimizeWindowButton(colors: buttonColors),
-        ),
-        Tooltip(
-          message: 'Maximize',
-          child: MaximizeWindowButton(colors: buttonColors),
-        ),
-        Tooltip(
-          message: 'Close',
-          child: CloseWindowButton(colors: closeButtonColors),
-        ),
-      ],
+    return Consumer<AppState>(
+      builder: (context, appState, child) {
+        final buttonColors = WindowButtonColors(
+          iconNormal:
+              appState.isDarkTheme
+                  ? const Color(0xFFFFFFFF)
+                  : const Color(0xFF000000),
+          mouseOver:
+              appState.isDarkTheme
+                  ? const Color(0xFF2D3A3A)
+                  : const Color(0xFFE0E0E0),
+          mouseDown:
+              appState.isDarkTheme
+                  ? const Color(0xFF1F2A29)
+                  : const Color(0xFFBDBDBD),
+          iconMouseOver:
+              appState.isDarkTheme
+                  ? const Color(0xFFFFFFFF)
+                  : const Color(0xFF000000),
+          iconMouseDown:
+              appState.isDarkTheme
+                  ? const Color(0xFFFFFFFF)
+                  : const Color(0xFF000000),
+        );
+
+        final closeButtonColors = WindowButtonColors(
+          mouseOver: const Color(0xFFD32F2F),
+          mouseDown: const Color(0xFFB71C1C),
+          iconNormal:
+              appState.isDarkTheme
+                  ? const Color(0xFFFFFFFF)
+                  : const Color(0xFF000000),
+          iconMouseOver:
+              appState.isDarkTheme
+                  ? const Color(0xFFFFFFFF)
+                  : const Color(0xFF000000),
+        );
+
+        return Row(
+          children: [
+            Tooltip(
+              message: 'Minimize',
+              child: MinimizeWindowButton(colors: buttonColors),
+            ),
+            Tooltip(
+              message: 'Maximize',
+              child: MaximizeWindowButton(colors: buttonColors),
+            ),
+            Tooltip(
+              message: 'Close',
+              child: CloseWindowButton(colors: closeButtonColors),
+            ),
+          ],
+        );
+      },
     );
   }
 }
@@ -60,78 +87,103 @@ class PageLayout extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      color: const Color(0xFF1F2A29),
-      child: Column(
-        children: [
-          WindowTitleBarBox(
-            child: Row(
-              children: [Expanded(child: MoveWindow()), const WindowButtons()],
-            ),
-          ),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const SizedBox(height: 10),
-                Padding(
-                  padding: const EdgeInsets.only(left: 16.0, right: 16.0),
-                  child: SizedBox(
-                    height: 20,
-                    child: Center(
-                      child: Text(
-                        description,
-                        style: const TextStyle(color: Colors.white),
-                      ),
-                    ),
-                  ),
+    return Consumer<AppState>(
+      builder: (context, appState, child) {
+        return Container(
+          color:
+              appState.isDarkTheme
+                  ? const Color(0xFF1F2A29)
+                  : const Color(0xFFF5F5F5),
+          child: Column(
+            children: [
+              WindowTitleBarBox(
+                child: Row(
+                  children: [
+                    Expanded(child: MoveWindow()),
+                    const WindowButtons(),
+                  ],
                 ),
-                const SizedBox(height: 10),
-                Padding(
-                  padding: const EdgeInsets.only(left: 16.0, right: 16.0),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        previewTitle,
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
+              ),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const SizedBox(height: 10),
+                    Padding(
+                      padding: const EdgeInsets.only(left: 16.0, right: 16.0),
+                      child: SizedBox(
+                        height: 20,
+                        child: Center(
+                          child: Text(
+                            description,
+                            style: TextStyle(
+                              color:
+                                  appState.isDarkTheme
+                                      ? Colors.white
+                                      : Colors.black,
+                            ),
+                          ),
                         ),
                       ),
-                      Row(
+                    ),
+                    const SizedBox(height: 10),
+                    Padding(
+                      padding: const EdgeInsets.only(left: 16.0, right: 16.0),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          if (extraButtons != null) extraButtons!,
-                          if (onToggleChanged != null)
-                            ToggleButtons(onToggleChanged: onToggleChanged!),
+                          Text(
+                            previewTitle,
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color:
+                                  appState.isDarkTheme
+                                      ? Colors.white
+                                      : Colors.black,
+                            ),
+                          ),
+                          Row(
+                            children: [
+                              if (extraButtons != null) extraButtons!,
+                              if (onToggleChanged != null)
+                                ToggleButtons(
+                                  onToggleChanged: onToggleChanged!,
+                                ),
+                            ],
+                          ),
                         ],
                       ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 5),
-                Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.only(
-                      left: 16.0,
-                      right: 16.0,
-                      bottom: 16.0,
                     ),
-                    child: Container(
-                      width: double.infinity,
-                      decoration: BoxDecoration(
-                        border: Border.all(color: const Color(0xFF2D3A3A)),
-                        borderRadius: BorderRadius.circular(4.0),
+                    const SizedBox(height: 5),
+                    Expanded(
+                      child: Padding(
+                        padding: const EdgeInsets.only(
+                          left: 16.0,
+                          right: 16.0,
+                          bottom: 16.0,
+                        ),
+                        child: Container(
+                          width: double.infinity,
+                          decoration: BoxDecoration(
+                            border: Border.all(
+                              color:
+                                  appState.isDarkTheme
+                                      ? const Color(0xFF2D3A3A)
+                                      : const Color(0xFFE0E0E0),
+                            ),
+                            borderRadius: BorderRadius.circular(4.0),
+                          ),
+                          child: previewContent,
+                        ),
                       ),
-                      child: previewContent,
                     ),
-                  ),
+                  ],
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 }
@@ -152,56 +204,60 @@ class _ToggleButtonsState extends State<ToggleButtons> {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Tooltip(
-          message: 'Toggle favourites preview',
-          child: Button(
-            onPressed: () {
-              setState(() {
-                _showFavouritesPreview = !_showFavouritesPreview;
-                if (_showFavouritesPreview) {
-                  _showBannedPreview = false;
-                }
-                widget.onToggleChanged(
-                  _showFavouritesPreview,
-                  _showBannedPreview,
-                );
-              });
-            },
-            child: Icon(
-              _showFavouritesPreview
-                  ? FluentIcons.heart_fill
-                  : FluentIcons.heart,
-              color: Colors.white,
+    return Consumer<AppState>(
+      builder: (context, appState, child) {
+        return Row(
+          children: [
+            Tooltip(
+              message: 'Toggle favourites preview',
+              child: Button(
+                onPressed: () {
+                  setState(() {
+                    _showFavouritesPreview = !_showFavouritesPreview;
+                    if (_showFavouritesPreview) {
+                      _showBannedPreview = false;
+                    }
+                    widget.onToggleChanged(
+                      _showFavouritesPreview,
+                      _showBannedPreview,
+                    );
+                  });
+                },
+                child: Icon(
+                  _showFavouritesPreview
+                      ? FluentIcons.heart_fill
+                      : FluentIcons.heart,
+                  color: appState.isDarkTheme ? Colors.white : Colors.black,
+                ),
+              ),
             ),
-          ),
-        ),
-        const SizedBox(width: 8),
-        Tooltip(
-          message: 'Toggle banned preview',
-          child: Button(
-            onPressed: () {
-              setState(() {
-                _showBannedPreview = !_showBannedPreview;
-                if (_showBannedPreview) {
-                  _showFavouritesPreview = false;
-                }
-                widget.onToggleChanged(
-                  _showFavouritesPreview,
-                  _showBannedPreview,
-                );
-              });
-            },
-            child: Icon(
-              _showBannedPreview
-                  ? FluentIcons.block_contact
-                  : FluentIcons.blocked,
-              color: Colors.white,
+            const SizedBox(width: 8),
+            Tooltip(
+              message: 'Toggle banned preview',
+              child: Button(
+                onPressed: () {
+                  setState(() {
+                    _showBannedPreview = !_showBannedPreview;
+                    if (_showBannedPreview) {
+                      _showFavouritesPreview = false;
+                    }
+                    widget.onToggleChanged(
+                      _showFavouritesPreview,
+                      _showBannedPreview,
+                    );
+                  });
+                },
+                child: Icon(
+                  _showBannedPreview
+                      ? FluentIcons.block_contact
+                      : FluentIcons.blocked,
+                  color: appState.isDarkTheme ? Colors.white : Colors.black,
+                ),
+              ),
             ),
-          ),
-        ),
-      ],
+          ],
+        );
+      },
     );
   }
 }
@@ -212,8 +268,17 @@ class LoadingWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Center(
-      child: Text('Loading...', style: TextStyle(color: Colors.white)),
+    return Consumer<AppState>(
+      builder: (context, appState, child) {
+        return Center(
+          child: Text(
+            'Loading...',
+            style: TextStyle(
+              color: appState.isDarkTheme ? Colors.white : Colors.black,
+            ),
+          ),
+        );
+      },
     );
   }
 }
@@ -227,24 +292,30 @@ class ErrorWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            errorMessage,
-            style: const TextStyle(color: Colors.white),
-            textAlign: TextAlign.center,
+    return Consumer<AppState>(
+      builder: (context, appState, child) {
+        return Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                errorMessage,
+                style: TextStyle(
+                  color: appState.isDarkTheme ? Colors.white : Colors.black,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              if (onRetry != null) ...[
+                const SizedBox(height: 8),
+                Tooltip(
+                  message: 'Retry',
+                  child: Button(onPressed: onRetry, child: const Text('Retry')),
+                ),
+              ],
+            ],
           ),
-          if (onRetry != null) ...[
-            const SizedBox(height: 8),
-            Tooltip(
-              message: 'Retry',
-              child: Button(onPressed: onRetry, child: const Text('Retry')),
-            ),
-          ],
-        ],
-      ),
+        );
+      },
     );
   }
 }
@@ -257,8 +328,17 @@ class NoDataWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: Text(message, style: const TextStyle(color: Colors.white)),
+    return Consumer<AppState>(
+      builder: (context, appState, child) {
+        return Center(
+          child: Text(
+            message,
+            style: TextStyle(
+              color: appState.isDarkTheme ? Colors.white : Colors.black,
+            ),
+          ),
+        );
+      },
     );
   }
 }
@@ -286,61 +366,76 @@ class WallpaperGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Expanded(
-          child: GridView.builder(
-            key: const ValueKey("WallpaperGrid"),
-            controller: controller,
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 2,
-              childAspectRatio: 1.5,
-            ),
-            itemCount: imageUrls.length,
-            itemBuilder: (context, index) {
-              return Padding(
-                padding: const EdgeInsets.all(4.0),
-                child: GestureDetector(
-                  onTap: () => onTap(imageUrls[index]),
-                  onSecondaryTap: () => onSecondaryTap(index),
-                  child: Image.network(
-                    imageUrls[index],
-                    key: ValueKey(imageUrls[index]),
-                    fit: BoxFit.cover,
-                    loadingBuilder: (context, child, loadingProgress) {
-                      if (loadingProgress == null) return child;
-                      return const Center(
-                        child: Text(
-                          'Loading...',
-                          style: TextStyle(color: Colors.white),
-                        ),
-                      );
-                    },
-                    errorBuilder: (context, error, stackTrace) {
-                      return const Center(
-                        child: Icon(FluentIcons.error, color: Colors.white),
-                      );
-                    },
-                  ),
+    return Consumer<AppState>(
+      builder: (context, appState, child) {
+        return Column(
+          children: [
+            Expanded(
+              child: GridView.builder(
+                key: const ValueKey("WallpaperGrid"),
+                controller: controller,
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 2,
+                  childAspectRatio: 1.5,
                 ),
-              );
-            },
-          ),
-        ),
-        if (isLoading)
-          const Padding(padding: EdgeInsets.all(8.0), child: ProgressRing())
-        else if (showLoadMore)
-          Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: Tooltip(
-              message: 'Load more wallpapers',
-              child: Button(
-                onPressed: onLoadMore,
-                child: const Text('Load More'),
+                itemCount: imageUrls.length,
+                itemBuilder: (context, index) {
+                  return Padding(
+                    padding: const EdgeInsets.all(4.0),
+                    child: GestureDetector(
+                      onTap: () => onTap(imageUrls[index]),
+                      onSecondaryTap: () => onSecondaryTap(index),
+                      child: Image.network(
+                        imageUrls[index],
+                        key: ValueKey(imageUrls[index]),
+                        fit: BoxFit.cover,
+                        loadingBuilder: (context, child, loadingProgress) {
+                          if (loadingProgress == null) return child;
+                          return Center(
+                            child: Text(
+                              'Loading...',
+                              style: TextStyle(
+                                color:
+                                    appState.isDarkTheme
+                                        ? Colors.white
+                                        : Colors.black,
+                              ),
+                            ),
+                          );
+                        },
+                        errorBuilder: (context, error, stackTrace) {
+                          return Center(
+                            child: Icon(
+                              FluentIcons.error,
+                              color:
+                                  appState.isDarkTheme
+                                      ? Colors.white
+                                      : Colors.black,
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  );
+                },
               ),
             ),
-          ),
-      ],
+            if (isLoading)
+              const Padding(padding: EdgeInsets.all(8.0), child: ProgressRing())
+            else if (showLoadMore)
+              Padding(
+                padding: const EdgeInsets.all(8.0),
+                child: Tooltip(
+                  message: 'Load more wallpapers',
+                  child: Button(
+                    onPressed: onLoadMore,
+                    child: const Text('Load More'),
+                  ),
+                ),
+              ),
+          ],
+        );
+      },
     );
   }
 }

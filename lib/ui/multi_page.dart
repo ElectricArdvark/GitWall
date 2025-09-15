@@ -1,6 +1,10 @@
+import 'dart:io';
 import 'package:fluent_ui/fluent_ui.dart' hide Colors;
 import 'package:flutter/material.dart' show Colors;
 import 'package:gitwall/ui/common_widgets.dart';
+import 'package:gitwall/ui/next_wallpaper_button.dart';
+import 'package:gitwall/ui/shuffle_button.dart';
+import 'package:gitwall/ui/wallpaper_options_dialog.dart';
 import 'package:provider/provider.dart';
 import '../state/app_state.dart';
 
@@ -84,16 +88,67 @@ class _MultiPageState extends State<MultiPage> {
 
   void _fetchUrlsIfNeeded() async {
     if (_imageUrls.isEmpty) {
-      // Check internet connectivity first
+      // First, try to load cached wallpapers
+      await _loadCachedImages();
+
+      // Then check internet connectivity and load additional images
       final isInternetAvailable = await widget.appState.isInternetAvailable();
       if (!isInternetAvailable) {
-        setState(() {
-          _hasError = true;
-          _errorMessage = 'No internet connection available';
-        });
+        // If no internet and no cached images, show error
+        if (_imageUrls.isEmpty) {
+          setState(() {
+            _hasError = true;
+            _errorMessage = 'No internet connection available';
+          });
+        }
         return;
       }
       _loadImages(10);
+    }
+  }
+
+  Future<void> _loadCachedImages() async {
+    try {
+      final repoUrl = widget.appState.repoUrl;
+      const day = 'multi';
+      final resolution = widget.appState.currentResolution;
+
+      // Get cached wallpaper URLs for this repository
+      final cachedUrls = await widget.appState.getCachedWallpaperUrls(
+        repoUrl.isEmpty
+            ? 'https://github.com/ElectricArdvark/wallpapers'
+            : repoUrl,
+        day,
+        resolution,
+      );
+
+      // Filter out banned wallpapers
+      final banned = widget.appState.bannedWallpapers['Multi'] ?? [];
+      final filteredCachedUrls =
+          cachedUrls.where((url) {
+            final uri = Uri.parse(url);
+            final fileName = uri.pathSegments.last;
+            final uniqueId = widget.appState.generateWallpaperUniqueId(
+              repoUrl.isEmpty
+                  ? 'https://github.com/ElectricArdvark/wallpapers'
+                  : repoUrl,
+              'multi',
+              widget.appState.currentResolution,
+              fileName,
+            );
+            return !banned.any(
+              (bannedWallpaper) => bannedWallpaper['uniqueId'] == uniqueId,
+            );
+          }).toList();
+
+      if (filteredCachedUrls.isNotEmpty) {
+        setState(() {
+          _imageUrls.addAll(filteredCachedUrls);
+        });
+      }
+    } catch (e) {
+      // Ignore cache loading errors - we'll still try to load from online
+      print('Error loading cached images: $e');
     }
   }
 
@@ -154,75 +209,92 @@ class _MultiPageState extends State<MultiPage> {
 
   Widget _buildPreviewContent() {
     if (_imageUrls.isEmpty && _isLoading) {
-      return const Center(
-        child: Text('Loading...', style: TextStyle(color: Colors.white)),
-      );
+      return const LoadingWidget();
     }
     if (_hasError) {
       // Special handling for no internet connection
       if (_errorMessage.contains('No internet connection available')) {
-        return Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text(
-                'No Internet Available',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                ),
-                textAlign: TextAlign.center,
+        return Consumer<AppState>(
+          builder: (context, appState, child) {
+            return Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'No Internet Available',
+                    style: TextStyle(
+                      color: appState.isDarkTheme ? Colors.white : Colors.black,
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 8),
+                  Tooltip(
+                    message: 'Switch to saved wallpapers',
+                    child: Button(
+                      onPressed: () {
+                        // Navigate to cached page (Saved tab)
+                        widget.appState.setActiveTab('Saved');
+                      },
+                      child: const Text('Use Saved Wallpapers Instead'),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Tooltip(
+                    message: 'Retry loading images',
+                    child: Button(
+                      onPressed: () => _fetchUrlsIfNeeded(),
+                      child: const Text('Retry'),
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(height: 8),
-              Tooltip(
-                message: 'Switch to saved wallpapers',
-                child: Button(
-                  onPressed: () {
-                    // Navigate to cached page (Saved tab)
-                    widget.appState.setActiveTab('Saved');
-                  },
-                  child: const Text('Use Saved Wallpapers Instead'),
-                ),
-              ),
-              const SizedBox(height: 8),
-              Tooltip(
-                message: 'Retry loading images',
-                child: Button(
-                  onPressed: () => _fetchUrlsIfNeeded(),
-                  child: const Text('Retry'),
-                ),
-              ),
-            ],
-          ),
+            );
+          },
         );
       } else {
         // Regular error handling
-        return Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                'Error loading images: $_errorMessage',
-                style: const TextStyle(color: Colors.white),
-                textAlign: TextAlign.center,
+        return Consumer<AppState>(
+          builder: (context, appState, child) {
+            return Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'Error loading images: $_errorMessage',
+                    style: TextStyle(
+                      color: appState.isDarkTheme ? Colors.white : Colors.black,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 8),
+                  Tooltip(
+                    message: 'Retry loading images',
+                    child: Button(
+                      onPressed: () => _loadImages(10),
+                      child: const Text('Retry'),
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(height: 8),
-              Tooltip(
-                message: 'Retry loading images',
-                child: Button(
-                  onPressed: () => _loadImages(10),
-                  child: const Text('Retry'),
-                ),
-              ),
-            ],
-          ),
+            );
+          },
         );
       }
     }
     if (_imageUrls.isEmpty) {
-      return const Center(
-        child: Text('No images found.', style: TextStyle(color: Colors.white)),
+      return Consumer<AppState>(
+        builder: (context, appState, child) {
+          return Center(
+            child: Text(
+              'No images found.',
+              style: TextStyle(
+                color: appState.isDarkTheme ? Colors.white : Colors.black,
+              ),
+            ),
+          );
+        },
       );
     }
     return Column(
@@ -244,73 +316,87 @@ class _MultiPageState extends State<MultiPage> {
                       () =>
                           widget.appState.setWallpaperForUrl(_imageUrls[index]),
                   onSecondaryTap: () {
-                    // Show context menu for ban option
-                    showDialog(
-                      context: context,
-                      builder: (BuildContext context) {
-                        return ContentDialog(
-                          title: const Text('Wallpaper Options'),
-                          content: const Text(
-                            'What would you like to do with this wallpaper?',
-                          ),
-                          actions: [
-                            Tooltip(
-                              message: 'Ban this wallpaper',
-                              child: Button(
-                                onPressed: () async {
-                                  Navigator.of(context).pop();
-                                  final urlToBan = _imageUrls[index];
-                                  // Remove from UI immediately
-                                  setState(() {
-                                    _imageUrls.removeAt(index);
-                                  });
-                                  // Then ban in background
-                                  await widget.appState.banWallpaper(urlToBan);
-                                },
-                                child: const Text('Ban Wallpaper'),
-                              ),
-                            ),
-                            Tooltip(
-                              message: 'Add to favourites',
-                              child: Button(
-                                onPressed: () {
-                                  widget.appState.favouriteWallpaper(
-                                    _imageUrls[index],
-                                  );
-                                  Navigator.of(context).pop();
-                                },
-                                child: const Text('Favourite'),
-                              ),
-                            ),
-                            Tooltip(
-                              message: 'Cancel',
-                              child: Button(
-                                onPressed: () => Navigator.of(context).pop(),
-                                child: const Text('Cancel'),
-                              ),
-                            ),
-                          ],
-                        );
+                    WallpaperOptionsDialog.show(
+                      context,
+                      url: _imageUrls[index],
+                      onBan: widget.appState.banWallpaper,
+                      onFavourite: widget.appState.favouriteWallpaper,
+                      onRemoveFromList: (index) {
+                        setState(() {
+                          _imageUrls.removeAt(index);
+                        });
                       },
+                      itemIndex: index,
                     );
                   },
-                  child: Image.network(
-                    _imageUrls[index],
-                    key: ValueKey(_imageUrls[index]),
-                    fit: BoxFit.cover,
-                    loadingBuilder: (context, child, loadingProgress) {
-                      if (loadingProgress == null) return child;
-                      return const Center(
-                        child: Text(
-                          'Loading...',
-                          style: TextStyle(color: Colors.white),
-                        ),
-                      );
-                    },
-                    errorBuilder: (context, error, stackTrace) {
-                      return const Center(
-                        child: Icon(FluentIcons.error, color: Colors.white),
-                      );
+                  child: FutureBuilder<File?>(
+                    future: widget.appState.customCacheManager
+                        .getFileFromCache(_imageUrls[index])
+                        .then((info) => info?.file),
+                    builder: (context, snapshot) {
+                      if (snapshot.hasData && snapshot.data != null) {
+                        // Use cached file directly
+                        return Image.file(
+                          snapshot.data!,
+                          key: ValueKey(_imageUrls[index]),
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) {
+                            return Consumer<AppState>(
+                              builder: (context, appState, child) {
+                                return Center(
+                                  child: Icon(
+                                    FluentIcons.error,
+                                    color:
+                                        appState.isDarkTheme
+                                            ? Colors.white
+                                            : Colors.black,
+                                  ),
+                                );
+                              },
+                            );
+                          },
+                        );
+                      } else {
+                        // Use network image (will use cache if available)
+                        return Image.network(
+                          _imageUrls[index],
+                          key: ValueKey(_imageUrls[index]),
+                          fit: BoxFit.cover,
+                          loadingBuilder: (context, child, loadingProgress) {
+                            if (loadingProgress == null) return child;
+                            return Consumer<AppState>(
+                              builder: (context, appState, child) {
+                                return Center(
+                                  child: Text(
+                                    'Loading...',
+                                    style: TextStyle(
+                                      color:
+                                          appState.isDarkTheme
+                                              ? Colors.white
+                                              : Colors.black,
+                                    ),
+                                  ),
+                                );
+                              },
+                            );
+                          },
+                          errorBuilder: (context, error, stackTrace) {
+                            return Consumer<AppState>(
+                              builder: (context, appState, child) {
+                                return Center(
+                                  child: Icon(
+                                    FluentIcons.error,
+                                    color:
+                                        appState.isDarkTheme
+                                            ? Colors.white
+                                            : Colors.black,
+                                  ),
+                                );
+                              },
+                            );
+                          },
+                        );
+                      }
                     },
                   ),
                 ),
@@ -340,39 +426,17 @@ class _MultiPageState extends State<MultiPage> {
     return PageLayout(
       description: 'Uses a repository with multiple resolutions.',
       previewTitle: 'Wallpaper Preview:',
-      extraButtons: Row(
-        children: [
-          Consumer<AppState>(
-            builder:
-                (context, appState, child) => Tooltip(
-                  message: 'Set next wallpaper',
-                  child: Button(
-                    onPressed: () => appState.setNextWallpaper(),
-                    child: const Icon(FluentIcons.next, color: Colors.white),
-                  ),
-                ),
-          ),
-          const SizedBox(width: 8),
-          Consumer<AppState>(
-            builder:
-                (context, appState, child) => Tooltip(
-                  message: 'Toggle auto shuffle',
-                  child: Button(
-                    onPressed:
-                        () => appState.toggleAutoShuffle(
-                          !appState.autoShuffleEnabled,
-                        ),
-                    child: Icon(
-                      appState.autoShuffleEnabled
-                          ? FluentIcons.repeat_all
-                          : FluentIcons.repeat_one,
-                      color: Colors.white,
-                    ),
-                  ),
-                ),
-          ),
-          const SizedBox(width: 8),
-        ],
+      extraButtons: Consumer<AppState>(
+        builder: (context, appState, child) {
+          return Row(
+            children: [
+              NextWallpaperButton(appState: appState),
+              const SizedBox(width: 8),
+              ShuffleButton(appState: appState),
+              const SizedBox(width: 8),
+            ],
+          );
+        },
       ),
       previewContent:
           _showBannedPreview

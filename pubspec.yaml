@@ -13,7 +13,6 @@ dependencies:
   # UI Framework
   fluent_ui: ^4.12.0
   bitsdojo_window: ^0.1.6
-  flutter_acrylic: ^1.1.4
     
   # State Management
   provider: ^6.1.2
