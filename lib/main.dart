@@ -4,9 +4,9 @@ import 'package:gitwall/state/app_state.dart';
 import 'package:provider/provider.dart';
 import 'package:tray_manager/tray_manager.dart';
 import 'package:window_manager/window_manager.dart';
-import 'constants.dart';
-import 'themes.dart';
-import 'ui/base_page.dart';
+import 'utils/helpers.dart';
+import 'utils/themes.dart';
+import 'pages/base_page.dart';
 
 // Entry point of the application
 void main() async {

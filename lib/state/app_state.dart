@@ -3,13 +3,12 @@ import 'dart:io';
 import 'package:fluent_ui/fluent_ui.dart';
 import 'package:gitwall/services/settings_service.dart';
 import 'package:gitwall/services/startup_service.dart';
-import 'package:gitwall/services/banned_wallpapers_service.dart';
-import 'package:gitwall/services/favourite_wallpapers_service.dart';
+import 'package:gitwall/buttons/ban_button.dart';
+import 'package:gitwall/buttons/favourite_button.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 import 'package:intl/intl.dart';
 import 'package:path_provider/path_provider.dart';
-import '../constants.dart'; // Import constants.dart
 import '../services/github_service.dart';
 import '../services/wallpaper_service.dart';
 import '../utils/helpers.dart';
@@ -84,12 +83,6 @@ class AppState extends ChangeNotifier {
 
   String _githubToken = "";
   String get githubToken => _githubToken;
-
-  bool _autoShuffleEnabled = true;
-  bool get autoShuffleEnabled => _autoShuffleEnabled;
-
-  bool _useOnlyFavouritesEnabled = false;
-  bool get useOnlyFavouritesEnabled => _useOnlyFavouritesEnabled;
 
   bool _closeToTrayEnabled = true;
   bool get closeToTrayEnabled => _closeToTrayEnabled;
@@ -170,8 +163,6 @@ class AppState extends ChangeNotifier {
     _customWallpaperLocation =
         await _settingsService.getCustomWallpaperLocation();
     _githubToken = await _settingsService.getGithubToken();
-    _autoShuffleEnabled = await _settingsService.getAutoShuffle();
-    _useOnlyFavouritesEnabled = await _settingsService.getUseOnlyFavourites();
     _closeToTrayEnabled = await _settingsService.isCloseToTrayEnabled();
     _startMinimizedEnabled = await _settingsService.isStartMinimizedEnabled();
     _isDarkTheme = await _settingsService.getThemeMode();
@@ -179,6 +170,9 @@ class AppState extends ChangeNotifier {
     _bannedWallpapers = await _bannedWallpapersService.getBannedWallpapers();
     _favouriteWallpapers =
         await _favouriteWallpapersService.getFavouriteWallpapers();
+
+    // Auto-select resolution based on screen size if not manually set
+    await _autoSelectResolutionIfNeeded();
 
     // Load the last weekly wallpaper path
     final lastWeeklyPath =
@@ -194,20 +188,25 @@ class AppState extends ChangeNotifier {
     _githubService.setCacheManager(_customCacheManager);
     updateAutostart();
     await updateWallpaper(isManual: false);
-    _startScheduler();
+    await _startScheduler();
     notifyListeners();
   }
 
-  void _startScheduler() {
+  Future<void> _startScheduler() async {
     _timer?.cancel();
+    final autoShuffleEnabled = await _settingsService.getAutoShuffle();
     // Don't start timer for Weekly tab - shuffling should be off always
-    if (_autoShuffleEnabled && _activeTab != 'Weekly') {
+    if (autoShuffleEnabled && _activeTab != 'Weekly') {
       _timer = Timer.periodic(Duration(minutes: _wallpaperIntervalMinutes), (
         Timer timer,
       ) {
         updateWallpaper(isManual: false, fromTimer: true);
       });
     }
+  }
+
+  Future<void> restartScheduler() async {
+    await _startScheduler();
   }
 
   Future<void> updateRepoUrl(String newUrl) async {
@@ -235,7 +234,7 @@ class AppState extends ChangeNotifier {
     await _settingsService.saveActiveTab(tab);
     notifyListeners();
     // Restart scheduler when tab changes to handle Weekly tab shuffling
-    _startScheduler();
+    await _startScheduler();
     // Reset wallpaper when switching to Weekly tab from another tab
     if (tab == 'Weekly' && !wasWeekly) {
       await updateWallpaper(isManual: false);
@@ -267,19 +266,6 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> toggleAutoShuffle(bool enabled) async {
-    _autoShuffleEnabled = enabled;
-    await _settingsService.setAutoShuffle(enabled);
-    _startScheduler();
-    notifyListeners();
-  }
-
-  Future<void> toggleUseOnlyFavourites(bool enabled) async {
-    _useOnlyFavouritesEnabled = enabled;
-    await _settingsService.setUseOnlyFavourites(enabled);
-    notifyListeners();
-  }
-
   Future<void> toggleTheme(bool isDark) async {
     _isDarkTheme = isDark;
     await _settingsService.setThemeMode(isDark);
@@ -289,7 +275,7 @@ class AppState extends ChangeNotifier {
   Future<void> updateWallpaperInterval(int minutes) async {
     _wallpaperIntervalMinutes = minutes;
     await _settingsService.saveWallpaperInterval(minutes);
-    _startScheduler(); // Restart scheduler with new interval
+    await _startScheduler(); // Restart scheduler with new interval
     notifyListeners();
   }
 
@@ -314,6 +300,8 @@ class AppState extends ChangeNotifier {
   Future<void> updateResolution(String newResolution) async {
     _currentResolution = newResolution;
     await _settingsService.saveResolution(newResolution);
+    // Mark that user has manually selected resolution (not auto-selected)
+    await _settingsService.setResolutionAutoSelected(false);
     notifyListeners();
     await updateWallpaper(isManual: true);
   }
@@ -378,7 +366,7 @@ class AppState extends ChangeNotifier {
       _cachedUrls.remove(_activeTab);
     } else if (fromTimer &&
         (_activeTab == 'Multi' || _activeTab == 'Custom') &&
-        !_autoShuffleEnabled) {
+        !await _settingsService.getAutoShuffle()) {
       // Skip auto-update for Multi and Custom tabs from timer unless auto shuffle is enabled
       _updateStatus("Skipping auto-update for $_activeTab tab");
       return;
@@ -475,11 +463,11 @@ class AppState extends ChangeNotifier {
         // For Multi and Custom repositories
         _updateStatus("Downloading wallpaper...");
 
-        if (_autoShuffleEnabled) {
+        if (await _settingsService.getAutoShuffle()) {
           // Cycling logic
           // Use cached URLs if available and not forcing refresh, otherwise fetch new ones
           List<String> urls;
-          if (_useOnlyFavouritesEnabled) {
+          if (await _settingsService.getUseOnlyFavourites()) {
             // When using only favourites, fetch from ALL repositories that have favourites
             print(
               'DEBUG: [updateWallpaper FAVOURITES MODE] Fetching URLs from all repositories with favourites...',
@@ -560,7 +548,7 @@ class AppState extends ChangeNotifier {
           }
 
           // If use only favourites is enabled, filter URLs to only include favourited ones from ALL tabs
-          if (_useOnlyFavouritesEnabled) {
+          if (await _settingsService.getUseOnlyFavourites()) {
             // Collect favourite URLs from all tabs
             final allFavouriteUrls = <String>{};
             for (final tabFavourites in _favouriteWallpapers.values) {
@@ -837,7 +825,7 @@ class AppState extends ChangeNotifier {
 
       // Use cached URLs if available, otherwise fetch new ones
       List<String> urls;
-      if (_useOnlyFavouritesEnabled) {
+      if (await _settingsService.getUseOnlyFavourites()) {
         // When using only favourites, fetch from ALL repositories that have favourites
         // IGNORE active tab constraints completely
         print(
@@ -920,7 +908,7 @@ class AppState extends ChangeNotifier {
       }
 
       // If use only favourites is enabled, filter URLs to only include favourited ones from ALL tabs
-      if (_useOnlyFavouritesEnabled) {
+      if (await _settingsService.getUseOnlyFavourites()) {
         // Collect favourite URLs from all tabs
         final allFavouriteUrls = <String>{};
         for (final tabFavourites in _favouriteWallpapers.values) {
@@ -1344,7 +1332,7 @@ class AppState extends ChangeNotifier {
 
       // If use only favourites is enabled, filter cached images to only include favourited ones
       List<File> filteredImageFiles = imageFiles;
-      if (_useOnlyFavouritesEnabled) {
+      if (await _settingsService.getUseOnlyFavourites()) {
         print(
           'DEBUG: [SAVED TAB FAVOURITES MODE] Filtering cached images to favourites only',
         );
@@ -1565,5 +1553,34 @@ class AppState extends ChangeNotifier {
     }
 
     return cachedUrls;
+  }
+
+  /// Automatically selects the best resolution for the screen if not manually set
+  Future<void> _autoSelectResolutionIfNeeded() async {
+    try {
+      // Check if resolution has been manually set by user
+      final isAutoSelected = await _settingsService.isResolutionAutoSelected();
+
+      // If resolution was manually set by user, don't auto-select
+      if (!isAutoSelected) {
+        // Check if current resolution is still the default
+        final currentResolution = await _settingsService.getResolution();
+        if (currentResolution == '1920x1080') {
+          // Still default, auto-select based on screen size
+          final bestResolution = selectBestResolutionForScreen();
+          if (bestResolution != currentResolution) {
+            print(
+              'Auto-selecting resolution: $bestResolution (screen size: ${getPrimaryDisplayResolution()})',
+            );
+            _currentResolution = bestResolution;
+            await _settingsService.saveResolution(bestResolution);
+            await _settingsService.setResolutionAutoSelected(true);
+          }
+        }
+      }
+    } catch (e) {
+      print('Error in auto-select resolution: $e');
+      // Don't fail initialization if auto-selection fails
+    }
   }
 }

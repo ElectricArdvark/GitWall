@@ -1,9 +1,9 @@
 import 'package:fluent_ui/fluent_ui.dart' hide Colors;
 import 'package:flutter/material.dart' show Colors;
-import 'package:gitwall/ui/common_widgets.dart';
-import 'package:gitwall/ui/next_wallpaper_button.dart';
-import 'package:gitwall/ui/shuffle_button.dart';
-import 'package:gitwall/ui/wallpaper_options_dialog.dart';
+import 'package:gitwall/widgets/common_widget.dart';
+import 'package:gitwall/buttons/next_wallpaper_button.dart';
+import 'package:gitwall/buttons/shuffle_button.dart';
+import 'package:gitwall/widgets/wallpaper_options_widget.dart';
 import 'package:provider/provider.dart';
 import 'dart:io';
 import 'dart:convert';

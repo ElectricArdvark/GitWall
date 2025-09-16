@@ -3,7 +3,7 @@ import 'dart:io';
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as p;
 import 'package:shared_preferences/shared_preferences.dart';
-import '../constants.dart';
+import '../utils/helpers.dart';
 
 class SettingsService {
   static const _repoUrlKey = 'github_repo_url';
@@ -11,6 +11,7 @@ class SettingsService {
   static const _activeTabKey = 'active_tab';
   static const _autostartKey = 'autostart_enabled';
   static const _resolutionKey = 'resolution';
+  static const _resolutionAutoSelectedKey = 'resolution_auto_selected';
   static const _wallpaperIntervalKey = 'wallpaper_interval_minutes';
   static const _welcomeShownKey = 'welcome_shown';
   static const _hideStatusKey = 'hide_status';
@@ -53,6 +54,17 @@ class SettingsService {
   Future<String> getResolution() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getString(_resolutionKey) ?? '1920x1080'; // Default resolution
+  }
+
+  Future<void> setResolutionAutoSelected(bool autoSelected) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_resolutionAutoSelectedKey, autoSelected);
+  }
+
+  Future<bool> isResolutionAutoSelected() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_resolutionAutoSelectedKey) ??
+        false; // Default to false
   }
 
   Future<void> saveRepoUrl(String url) async {

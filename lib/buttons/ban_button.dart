@@ -4,7 +4,9 @@ import 'package:flutter/material.dart' show Colors;
 import 'package:fluent_ui/fluent_ui.dart' hide Colors;
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as p;
+import 'package:provider/provider.dart';
 import '../state/app_state.dart';
+import 'favourite_button.dart';
 
 /// Service class to manage banned wallpapers functionality
 class BannedWallpapersService {
@@ -266,4 +268,71 @@ class BannedWallpapersService {
       },
     );
   }
+}
+
+/// A button widget for banning wallpapers
+class BanButton extends StatelessWidget {
+  final String url;
+  final Function(String) onBan;
+  final bool canBan;
+
+  const BanButton({
+    super.key,
+    required this.url,
+    required this.onBan,
+    this.canBan = true,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Consumer<AppState>(
+      builder: (context, appState, child) {
+        if (!canBan) return const SizedBox.shrink();
+
+        return Tooltip(
+          message: 'Ban this wallpaper',
+          child: Button(
+            onPressed: () async {
+              Navigator.of(context).pop();
+              await onBan(url);
+            },
+            child: const Text('Ban'),
+          ),
+        );
+      },
+    );
+  }
+}
+
+// Common wallpaper context menu (moved from common_widgets.dart)
+void showWallpaperContextMenu(
+  BuildContext context,
+  String url,
+  Function(String) onBan,
+  Function(String) onFavourite,
+) {
+  showDialog(
+    context: context,
+    builder: (BuildContext context) {
+      return ContentDialog(
+        title: const Text('Wallpaper Options'),
+        content: const Text('What would you like to do with this wallpaper?'),
+        actions: [
+          BanButton(url: url, onBan: onBan, canBan: true),
+          FavouriteButton(
+            url: url,
+            onFavourite: onFavourite,
+            canFavourite: true,
+          ),
+          Tooltip(
+            message: 'Cancel',
+            child: Button(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cancel'),
+            ),
+          ),
+        ],
+      );
+    },
+  );
 }

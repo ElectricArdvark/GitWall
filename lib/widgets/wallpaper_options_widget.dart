@@ -1,11 +1,14 @@
 import 'package:fluent_ui/fluent_ui.dart' hide Colors;
 import 'package:provider/provider.dart';
 import '../state/app_state.dart';
+import '../buttons/favourite_button.dart';
+import '../buttons/ban_button.dart';
 
 class WallpaperOptionsDialog extends StatelessWidget {
   final String url;
   final bool canBan;
   final bool canFavourite;
+  final bool canDelete;
   final Function(String)? onBan;
   final Function(String)? onFavourite;
   final Function(int)? onRemoveFromList;
@@ -16,6 +19,7 @@ class WallpaperOptionsDialog extends StatelessWidget {
     required this.url,
     this.canBan = true,
     this.canFavourite = true,
+    this.canDelete = false,
     this.onBan,
     this.onFavourite,
     this.onRemoveFromList,
@@ -30,30 +34,33 @@ class WallpaperOptionsDialog extends StatelessWidget {
           title: const Text('Wallpaper Options'),
           content: const Text('What would you like to do with this wallpaper?'),
           actions: [
-            if (canBan && onBan != null)
+            if (canDelete && onRemoveFromList != null && itemIndex != null)
               Tooltip(
-                message: 'Ban this wallpaper',
-                child: Button(
-                  onPressed: () async {
-                    Navigator.of(context).pop();
-                    if (onRemoveFromList != null && itemIndex != null) {
-                      onRemoveFromList!(itemIndex!);
-                    }
-                    await onBan!(url);
-                  },
-                  child: const Text('Ban Wallpaper'),
-                ),
-              ),
-            if (canFavourite && onFavourite != null)
-              Tooltip(
-                message: 'Add to favourites',
+                message: 'Delete this wallpaper',
                 child: Button(
                   onPressed: () {
-                    onFavourite!(url);
+                    onRemoveFromList!(itemIndex!);
                     Navigator.of(context).pop();
                   },
-                  child: const Text('Favourite'),
+                  child: const Text('Delete'),
                 ),
+              ),
+            if (canBan && onBan != null)
+              BanButton(
+                url: url,
+                onBan: (url) async {
+                  if (onRemoveFromList != null && itemIndex != null) {
+                    onRemoveFromList!(itemIndex!);
+                  }
+                  await onBan!(url);
+                },
+                canBan: canBan,
+              ),
+            if (canFavourite && onFavourite != null)
+              FavouriteButton(
+                url: url,
+                onFavourite: onFavourite!,
+                canFavourite: canFavourite,
               ),
             Tooltip(
               message: 'Cancel',
@@ -73,6 +80,7 @@ class WallpaperOptionsDialog extends StatelessWidget {
     required String url,
     bool canBan = true,
     bool canFavourite = true,
+    bool canDelete = false,
     Function(String)? onBan,
     Function(String)? onFavourite,
     Function(int)? onRemoveFromList,
@@ -85,6 +93,7 @@ class WallpaperOptionsDialog extends StatelessWidget {
           url: url,
           canBan: canBan,
           canFavourite: canFavourite,
+          canDelete: canDelete,
           onBan: onBan,
           onFavourite: onFavourite,
           onRemoveFromList: onRemoveFromList,

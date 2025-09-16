@@ -1,9 +1,8 @@
-import 'package:bitsdojo_window/bitsdojo_window.dart';
 import 'package:fluent_ui/fluent_ui.dart' hide Colors;
 import 'package:flutter/material.dart' show Colors;
-import 'package:gitwall/ui/common_widgets.dart';
 import 'package:provider/provider.dart';
 import '../state/app_state.dart';
+import '../widgets/common_widget.dart';
 
 class WelcomePage extends StatefulWidget {
   const WelcomePage({super.key});
@@ -24,18 +23,11 @@ class _WelcomePageState extends State<WelcomePage> {
                   : const Color(0xFFF5F5F5),
           child: Stack(
             children: [
-              Positioned(
+              const Positioned(
                 top: 0,
                 left: 0,
                 right: 0,
-                child: WindowTitleBarBox(
-                  child: Row(
-                    children: [
-                      Expanded(child: MoveWindow()),
-                      const WindowButtons(),
-                    ],
-                  ),
-                ),
+                child: WindowTitleBarWithBorder(),
               ),
               Center(
                 child: Column(

@@ -1,12 +1,12 @@
-import 'package:bitsdojo_window/bitsdojo_window.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:fluent_ui/fluent_ui.dart' hide Colors, Scrollbar;
 import 'package:flutter/material.dart' show Theme, Colors, Scaffold, Scrollbar;
-import 'package:gitwall/ui/common_widgets.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../state/app_state.dart';
-import '../themes.dart';
+import '../utils/themes.dart';
+import '../widgets/common_widget.dart';
+import '../utils/helpers.dart';
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
@@ -68,14 +68,7 @@ class _SettingsPageState extends State<SettingsPage> {
                     : const Color(0xFFF5F5F5),
             body: Column(
               children: [
-                WindowTitleBarBox(
-                  child: Row(
-                    children: [
-                      Expanded(child: MoveWindow()),
-                      const WindowButtons(),
-                    ],
-                  ),
-                ),
+                const WindowTitleBarWithBorder(),
                 Expanded(
                   child: Scrollbar(
                     thickness: 8.0,
@@ -160,27 +153,16 @@ class _SettingsPageState extends State<SettingsPage> {
                                   child: ComboBox<String>(
                                     value: _selectedResolution,
                                     items:
-                                        [
-                                          '3840x2160',
-                                          '2560x1440',
-                                          '1920x1080',
-                                          '1680x1050',
-                                          '1600x900',
-                                          '1536x864',
-                                          '1440x900',
-                                          '1366x768',
-                                          '1280x1024',
-                                          '1280x720',
-                                          '800x600',
-                                          '720x648',
-                                        ].map<ComboBoxItem<String>>((
-                                          String value,
-                                        ) {
-                                          return ComboBoxItem<String>(
-                                            value: value,
-                                            child: Text(value),
-                                          );
-                                        }).toList(),
+                                        availableResolutions
+                                            .map<ComboBoxItem<String>>((
+                                              String value,
+                                            ) {
+                                              return ComboBoxItem<String>(
+                                                value: value,
+                                                child: Text(value),
+                                              );
+                                            })
+                                            .toList(),
                                     onChanged: (String? newValue) {
                                       if (newValue != null) {
                                         setState(

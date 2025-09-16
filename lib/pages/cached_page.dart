@@ -1,14 +1,15 @@
 import 'package:fluent_ui/fluent_ui.dart' hide Colors;
 import 'package:flutter/material.dart' show Colors;
-import 'package:gitwall/ui/common_widgets.dart';
-import 'package:gitwall/ui/next_wallpaper_button.dart';
-import 'package:gitwall/ui/shuffle_button.dart';
-import 'package:gitwall/ui/wallpaper_options_dialog.dart';
+import 'package:gitwall/widgets/common_widget.dart';
+import 'package:gitwall/buttons/next_wallpaper_button.dart';
+import 'package:gitwall/buttons/shuffle_button.dart';
+import 'package:gitwall/widgets/wallpaper_options_widget.dart';
 import 'package:provider/provider.dart';
 import 'dart:io';
 import 'dart:convert';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../state/app_state.dart';
 
 class CachedPage extends StatefulWidget {
@@ -129,6 +130,17 @@ class _CachedPageState extends State<CachedPage> {
     }
   }
 
+  void _openCacheDirectory() async {
+    final cacheDirPath = await widget.appState.getCacheDirectoryPath();
+    final uri = Uri.directory(cacheDirPath);
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri);
+    } else {
+      // Handle error
+      print('Could not launch $cacheDirPath');
+    }
+  }
+
   void _deleteCachedImage(Map<String, dynamic> item) async {
     try {
       await item['file'].delete();
@@ -210,6 +222,7 @@ class _CachedPageState extends State<CachedPage> {
                       context,
                       url: item['url'] ?? '',
                       canBan: false,
+                      canDelete: true,
                       onFavourite:
                           item['url'] != null
                               ? widget.appState.favouriteWallpaper
@@ -257,6 +270,17 @@ class _CachedPageState extends State<CachedPage> {
           previewTitle: 'Cached Wallpaper Preview:',
           extraButtons: Row(
             children: [
+              Tooltip(
+                message: 'Open wallpaper cache directory',
+                child: Button(
+                  onPressed: _openCacheDirectory,
+                  child: Icon(
+                    FluentIcons.folder_open,
+                    color: appState.isDarkTheme ? Colors.white : Colors.black,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
               NextWallpaperButton(appState: appState),
               const SizedBox(width: 8),
               ShuffleButton(appState: appState),

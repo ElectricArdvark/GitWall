@@ -1,14 +1,14 @@
-import 'package:bitsdojo_window/bitsdojo_window.dart';
 import 'package:fluent_ui/fluent_ui.dart';
 import 'package:flutter/material.dart' show CircularProgressIndicator;
-import 'package:gitwall/ui/settings_page.dart';
+import 'package:gitwall/pages/settings_page.dart';
 import 'package:provider/provider.dart';
-import 'package:gitwall/ui/welcome_page.dart';
-import 'package:gitwall/ui/weekly_page.dart';
-import 'package:gitwall/ui/multi_page.dart';
-import 'package:gitwall/ui/custom_page.dart';
-import 'package:gitwall/ui/cached_page.dart';
+import 'package:gitwall/pages/welcome_page.dart';
+import 'package:gitwall/pages/weekly_page.dart';
+import 'package:gitwall/pages/multi_page.dart';
+import 'package:gitwall/pages/custom_page.dart';
+import 'package:gitwall/pages/cached_page.dart';
 import '../state/app_state.dart';
+import '../widgets/common_widget.dart';
 
 // Main home page widget that manages the overall app layout
 // Contains navigation sidebar and main content area
@@ -113,7 +113,7 @@ class _BasePageState extends State<BasePage> {
 }
 
 Color getBorderColor(bool isDark) =>
-    isDark ? const Color(0xFF1F2A29) : const Color(0xFFE0E0E0);
+    isDark ? const Color(0xFF555555) : const Color(0xFFAAAAAA);
 Color getLeftSidebarColor(bool isDark) =>
     isDark ? const Color(0xFF1F2A29) : const Color(0xFFF5F5F5);
 
@@ -139,10 +139,14 @@ class LeftSideZone extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Draggable window title bar area
-            WindowTitleBarBox(child: SizedBox(height: 48, child: MoveWindow())),
+            const WindowTitleBarWithBorder(showButtons: false),
             // App title in the sidebar
             Padding(
-              padding: EdgeInsets.only(left: 75.0, top: 16.0, bottom: 32.0),
+              padding: const EdgeInsets.only(
+                left: 75.0,
+                top: 16.0,
+                bottom: 32.0,
+              ),
               child: Text(
                 'GitWall',
                 style: TextStyle(

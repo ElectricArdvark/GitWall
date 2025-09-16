@@ -3,7 +3,7 @@ import 'dart:io';
 import 'dart:math';
 import 'package:http/http.dart' as http;
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
-import '../constants.dart';
+import '../utils/helpers.dart';
 
 class WallpaperDownloadResult {
   final File file;

@@ -2,14 +2,17 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart' show Colors;
 import 'package:fluent_ui/fluent_ui.dart' hide Colors;
+import 'package:gitwall/services/settings_service.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as p;
+import 'package:provider/provider.dart';
 import '../state/app_state.dart';
 
 /// Service class to manage favourite wallpapers functionality
 class FavouriteWallpapersService {
   static const String _favouriteWallpapersFileName =
       'favourite_wallpapers.json';
+  final SettingsService _settingsService = SettingsService();
 
   FavouriteWallpapersService();
 
@@ -144,25 +147,33 @@ class FavouriteWallpapersService {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Tooltip(
-                  message:
-                      appState.useOnlyFavouritesEnabled
-                          ? 'Disable using only favourite wallpapers'
-                          : 'Enable using only favourite wallpapers',
-                  child: ToggleButton(
-                    checked: appState.useOnlyFavouritesEnabled,
-                    onChanged: (value) {
-                      appState.toggleUseOnlyFavourites(value);
-                      setState(() {});
-                    },
-                    child: Text(
-                      'Set favourite as wallpaper',
-                      style: TextStyle(
-                        color:
-                            appState.isDarkTheme ? Colors.white : Colors.black,
+                FutureBuilder<bool>(
+                  future: _settingsService.getUseOnlyFavourites(),
+                  builder: (context, snapshot) {
+                    final useOnlyFavouritesEnabled = snapshot.data ?? false;
+                    return Tooltip(
+                      message:
+                          useOnlyFavouritesEnabled
+                              ? 'Disable using only favourite wallpapers'
+                              : 'Enable using only favourite wallpapers',
+                      child: ToggleButton(
+                        checked: useOnlyFavouritesEnabled,
+                        onChanged: (value) async {
+                          await _settingsService.setUseOnlyFavourites(value);
+                          setState(() {});
+                        },
+                        child: Text(
+                          'Set favourite as wallpaper',
+                          style: TextStyle(
+                            color:
+                                appState.isDarkTheme
+                                    ? Colors.white
+                                    : Colors.black,
+                          ),
+                        ),
                       ),
-                    ),
-                  ),
+                    );
+                  },
                 ),
               ],
             ),
@@ -188,24 +199,33 @@ class FavouriteWallpapersService {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Tooltip(
-                message:
-                    appState.useOnlyFavouritesEnabled
-                        ? 'Disable using only favourite wallpapers'
-                        : 'Enable using only favourite wallpapers',
-                child: ToggleButton(
-                  checked: appState.useOnlyFavouritesEnabled,
-                  onChanged: (value) {
-                    appState.toggleUseOnlyFavourites(value);
-                    setState(() {});
-                  },
-                  child: Text(
-                    'Set favourite as wallpaper',
-                    style: TextStyle(
-                      color: appState.isDarkTheme ? Colors.white : Colors.black,
+              FutureBuilder<bool>(
+                future: _settingsService.getUseOnlyFavourites(),
+                builder: (context, snapshot) {
+                  final useOnlyFavouritesEnabled = snapshot.data ?? false;
+                  return Tooltip(
+                    message:
+                        useOnlyFavouritesEnabled
+                            ? 'Disable using only favourite wallpapers'
+                            : 'Enable using only favourite wallpapers',
+                    child: ToggleButton(
+                      checked: useOnlyFavouritesEnabled,
+                      onChanged: (value) async {
+                        await _settingsService.setUseOnlyFavourites(value);
+                        setState(() {});
+                      },
+                      child: Text(
+                        'Set favourite as wallpaper',
+                        style: TextStyle(
+                          color:
+                              appState.isDarkTheme
+                                  ? Colors.white
+                                  : Colors.black,
+                        ),
+                      ),
                     ),
-                  ),
-                ),
+                  );
+                },
               ),
             ],
           ),
@@ -371,5 +391,39 @@ class FavouriteWallpapersService {
       print('Error getting cached file for favourite: $e');
     }
     return null;
+  }
+}
+
+/// A button widget for favouriting wallpapers
+class FavouriteButton extends StatelessWidget {
+  final String url;
+  final Function(String) onFavourite;
+  final bool canFavourite;
+
+  const FavouriteButton({
+    super.key,
+    required this.url,
+    required this.onFavourite,
+    this.canFavourite = true,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Consumer<AppState>(
+      builder: (context, appState, child) {
+        if (!canFavourite) return const SizedBox.shrink();
+
+        return Tooltip(
+          message: 'Add to favourites',
+          child: Button(
+            onPressed: () {
+              onFavourite(url);
+              Navigator.of(context).pop();
+            },
+            child: const Text('Favourite'),
+          ),
+        );
+      },
+    );
   }
 }

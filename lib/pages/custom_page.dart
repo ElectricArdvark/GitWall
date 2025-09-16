@@ -1,10 +1,10 @@
 import 'dart:io';
 import 'package:fluent_ui/fluent_ui.dart' hide Colors;
 import 'package:flutter/material.dart' show Colors;
-import 'package:gitwall/ui/common_widgets.dart';
-import 'package:gitwall/ui/next_wallpaper_button.dart';
-import 'package:gitwall/ui/shuffle_button.dart';
-import 'package:gitwall/ui/wallpaper_options_dialog.dart';
+import 'package:gitwall/widgets/common_widget.dart';
+import 'package:gitwall/buttons/next_wallpaper_button.dart';
+import 'package:gitwall/buttons/shuffle_button.dart';
+import 'package:gitwall/widgets/wallpaper_options_widget.dart';
 import 'package:provider/provider.dart';
 import '../state/app_state.dart';
 
@@ -12,15 +12,15 @@ const rightbackgroundStartColor = Color(0xFFFFD500);
 const rightbackgroundEndColor = Color(0xFFF6A00C);
 const borderColor = Color(0xFF805306);
 
-class MultiPage extends StatefulWidget {
+class CustomPage extends StatefulWidget {
   final AppState appState;
-  const MultiPage({super.key, required this.appState});
+  const CustomPage({super.key, required this.appState});
 
   @override
-  State<MultiPage> createState() => _MultiPageState();
+  State<CustomPage> createState() => _CustomPageState();
 }
 
-class _MultiPageState extends State<MultiPage> {
+class _CustomPageState extends State<CustomPage> {
   List<String> _imageUrls = [];
   bool _isLoading = false;
   bool _hasError = false;
@@ -72,9 +72,9 @@ class _MultiPageState extends State<MultiPage> {
   }
 
   @override
-  void didUpdateWidget(covariant MultiPage oldWidget) {
+  void didUpdateWidget(covariant CustomPage oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.appState.repoUrl != widget.appState.repoUrl ||
+    if (oldWidget.appState.customRepoUrl != widget.appState.customRepoUrl ||
         oldWidget.appState.currentResolution !=
             widget.appState.currentResolution) {
       setState(() {
@@ -109,15 +109,13 @@ class _MultiPageState extends State<MultiPage> {
 
   Future<void> _loadCachedImages() async {
     try {
-      final repoUrl = widget.appState.repoUrl;
-      const day = 'multi';
+      final repoUrl = widget.appState.customRepoUrl;
+      const day = '';
       final resolution = widget.appState.currentResolution;
 
       // Get cached wallpaper URLs for this repository
       final cachedUrls = await widget.appState.getCachedWallpaperUrls(
-        repoUrl.isEmpty
-            ? 'https://github.com/ElectricArdvark/wallpapers'
-            : repoUrl,
+        repoUrl,
         day,
         resolution,
       );
@@ -129,10 +127,8 @@ class _MultiPageState extends State<MultiPage> {
             final uri = Uri.parse(url);
             final fileName = uri.pathSegments.last;
             final uniqueId = widget.appState.generateWallpaperUniqueId(
-              repoUrl.isEmpty
-                  ? 'https://github.com/ElectricArdvark/wallpapers'
-                  : repoUrl,
-              'multi',
+              repoUrl,
+              '',
               widget.appState.currentResolution,
               fileName,
             );
@@ -158,12 +154,10 @@ class _MultiPageState extends State<MultiPage> {
       _hasError = false;
     });
     try {
-      final repoUrl = widget.appState.repoUrl;
-      const day = 'multi';
+      final repoUrl = widget.appState.customRepoUrl;
+      final day = '';
       final allUrls = await widget.appState.githubService.getImageUrls(
-        repoUrl.isEmpty
-            ? 'https://github.com/ElectricArdvark/wallpapers'
-            : repoUrl,
+        repoUrl,
         widget.appState.currentResolution,
         day,
         count * 2, // Get more to account for banned ones
@@ -178,10 +172,8 @@ class _MultiPageState extends State<MultiPage> {
                 final uri = Uri.parse(url);
                 final fileName = uri.pathSegments.last;
                 final uniqueId = widget.appState.generateWallpaperUniqueId(
-                  repoUrl.isEmpty
-                      ? 'https://github.com/ElectricArdvark/wallpapers'
-                      : repoUrl,
-                  'multi',
+                  repoUrl,
+                  '',
                   widget.appState.currentResolution,
                   fileName,
                 );
@@ -208,6 +200,20 @@ class _MultiPageState extends State<MultiPage> {
   void _loadMore() => _loadImages(10, offset: _imageUrls.length);
 
   Widget _buildPreviewContent() {
+    if (widget.appState.customRepoUrl.isEmpty) {
+      return Consumer<AppState>(
+        builder: (context, appState, child) {
+          return Center(
+            child: Text(
+              'Please set a custom repository URL in settings.',
+              style: TextStyle(
+                color: appState.isDarkTheme ? Colors.white : Colors.black,
+              ),
+            ),
+          );
+        },
+      );
+    }
     if (_imageUrls.isEmpty && _isLoading) {
       return const LoadingWidget();
     }
@@ -341,18 +347,11 @@ class _MultiPageState extends State<MultiPage> {
                           key: ValueKey(_imageUrls[index]),
                           fit: BoxFit.cover,
                           errorBuilder: (context, error, stackTrace) {
-                            return Consumer<AppState>(
-                              builder: (context, appState, child) {
-                                return Center(
-                                  child: Icon(
-                                    FluentIcons.error,
-                                    color:
-                                        appState.isDarkTheme
-                                            ? Colors.white
-                                            : Colors.black,
-                                  ),
-                                );
-                              },
+                            return const Center(
+                              child: Icon(
+                                FluentIcons.error,
+                                color: Colors.white,
+                              ),
                             );
                           },
                         );
@@ -364,35 +363,19 @@ class _MultiPageState extends State<MultiPage> {
                           fit: BoxFit.cover,
                           loadingBuilder: (context, child, loadingProgress) {
                             if (loadingProgress == null) return child;
-                            return Consumer<AppState>(
-                              builder: (context, appState, child) {
-                                return Center(
-                                  child: Text(
-                                    'Loading...',
-                                    style: TextStyle(
-                                      color:
-                                          appState.isDarkTheme
-                                              ? Colors.white
-                                              : Colors.black,
-                                    ),
-                                  ),
-                                );
-                              },
+                            return const Center(
+                              child: Text(
+                                'Loading...',
+                                style: TextStyle(color: Colors.white),
+                              ),
                             );
                           },
                           errorBuilder: (context, error, stackTrace) {
-                            return Consumer<AppState>(
-                              builder: (context, appState, child) {
-                                return Center(
-                                  child: Icon(
-                                    FluentIcons.error,
-                                    color:
-                                        appState.isDarkTheme
-                                            ? Colors.white
-                                            : Colors.black,
-                                  ),
-                                );
-                              },
+                            return const Center(
+                              child: Icon(
+                                FluentIcons.error,
+                                color: Colors.white,
+                              ),
                             );
                           },
                         );
@@ -424,7 +407,7 @@ class _MultiPageState extends State<MultiPage> {
   @override
   Widget build(BuildContext context) {
     return PageLayout(
-      description: 'Uses a repository with multiple resolutions.',
+      description: 'Uses a custom repository URL.',
       previewTitle: 'Wallpaper Preview:',
       extraButtons: Consumer<AppState>(
         builder: (context, appState, child) {

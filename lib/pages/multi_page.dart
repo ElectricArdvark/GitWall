@@ -1,10 +1,10 @@
 import 'dart:io';
 import 'package:fluent_ui/fluent_ui.dart' hide Colors;
 import 'package:flutter/material.dart' show Colors;
-import 'package:gitwall/ui/common_widgets.dart';
-import 'package:gitwall/ui/next_wallpaper_button.dart';
-import 'package:gitwall/ui/shuffle_button.dart';
-import 'package:gitwall/ui/wallpaper_options_dialog.dart';
+import 'package:gitwall/widgets/common_widget.dart';
+import 'package:gitwall/buttons/next_wallpaper_button.dart';
+import 'package:gitwall/buttons/shuffle_button.dart';
+import 'package:gitwall/widgets/wallpaper_options_widget.dart';
 import 'package:provider/provider.dart';
 import '../state/app_state.dart';
 
@@ -12,15 +12,15 @@ const rightbackgroundStartColor = Color(0xFFFFD500);
 const rightbackgroundEndColor = Color(0xFFF6A00C);
 const borderColor = Color(0xFF805306);
 
-class CustomPage extends StatefulWidget {
+class MultiPage extends StatefulWidget {
   final AppState appState;
-  const CustomPage({super.key, required this.appState});
+  const MultiPage({super.key, required this.appState});
 
   @override
-  State<CustomPage> createState() => _CustomPageState();
+  State<MultiPage> createState() => _MultiPageState();
 }
 
-class _CustomPageState extends State<CustomPage> {
+class _MultiPageState extends State<MultiPage> {
   List<String> _imageUrls = [];
   bool _isLoading = false;
   bool _hasError = false;
@@ -72,9 +72,9 @@ class _CustomPageState extends State<CustomPage> {
   }
 
   @override
-  void didUpdateWidget(covariant CustomPage oldWidget) {
+  void didUpdateWidget(covariant MultiPage oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.appState.customRepoUrl != widget.appState.customRepoUrl ||
+    if (oldWidget.appState.repoUrl != widget.appState.repoUrl ||
         oldWidget.appState.currentResolution !=
             widget.appState.currentResolution) {
       setState(() {
@@ -109,13 +109,15 @@ class _CustomPageState extends State<CustomPage> {
 
   Future<void> _loadCachedImages() async {
     try {
-      final repoUrl = widget.appState.customRepoUrl;
-      const day = '';
+      final repoUrl = widget.appState.repoUrl;
+      const day = 'multi';
       final resolution = widget.appState.currentResolution;
 
       // Get cached wallpaper URLs for this repository
       final cachedUrls = await widget.appState.getCachedWallpaperUrls(
-        repoUrl,
+        repoUrl.isEmpty
+            ? 'https://github.com/ElectricArdvark/wallpapers'
+            : repoUrl,
         day,
         resolution,
       );
@@ -127,8 +129,10 @@ class _CustomPageState extends State<CustomPage> {
             final uri = Uri.parse(url);
             final fileName = uri.pathSegments.last;
             final uniqueId = widget.appState.generateWallpaperUniqueId(
-              repoUrl,
-              '',
+              repoUrl.isEmpty
+                  ? 'https://github.com/ElectricArdvark/wallpapers'
+                  : repoUrl,
+              'multi',
               widget.appState.currentResolution,
               fileName,
             );
@@ -154,10 +158,12 @@ class _CustomPageState extends State<CustomPage> {
       _hasError = false;
     });
     try {
-      final repoUrl = widget.appState.customRepoUrl;
-      final day = '';
+      final repoUrl = widget.appState.repoUrl;
+      const day = 'multi';
       final allUrls = await widget.appState.githubService.getImageUrls(
-        repoUrl,
+        repoUrl.isEmpty
+            ? 'https://github.com/ElectricArdvark/wallpapers'
+            : repoUrl,
         widget.appState.currentResolution,
         day,
         count * 2, // Get more to account for banned ones
@@ -172,8 +178,10 @@ class _CustomPageState extends State<CustomPage> {
                 final uri = Uri.parse(url);
                 final fileName = uri.pathSegments.last;
                 final uniqueId = widget.appState.generateWallpaperUniqueId(
-                  repoUrl,
-                  '',
+                  repoUrl.isEmpty
+                      ? 'https://github.com/ElectricArdvark/wallpapers'
+                      : repoUrl,
+                  'multi',
                   widget.appState.currentResolution,
                   fileName,
                 );
@@ -200,20 +208,6 @@ class _CustomPageState extends State<CustomPage> {
   void _loadMore() => _loadImages(10, offset: _imageUrls.length);
 
   Widget _buildPreviewContent() {
-    if (widget.appState.customRepoUrl.isEmpty) {
-      return Consumer<AppState>(
-        builder: (context, appState, child) {
-          return Center(
-            child: Text(
-              'Please set a custom repository URL in settings.',
-              style: TextStyle(
-                color: appState.isDarkTheme ? Colors.white : Colors.black,
-              ),
-            ),
-          );
-        },
-      );
-    }
     if (_imageUrls.isEmpty && _isLoading) {
       return const LoadingWidget();
     }
@@ -347,11 +341,18 @@ class _CustomPageState extends State<CustomPage> {
                           key: ValueKey(_imageUrls[index]),
                           fit: BoxFit.cover,
                           errorBuilder: (context, error, stackTrace) {
-                            return const Center(
-                              child: Icon(
-                                FluentIcons.error,
-                                color: Colors.white,
-                              ),
+                            return Consumer<AppState>(
+                              builder: (context, appState, child) {
+                                return Center(
+                                  child: Icon(
+                                    FluentIcons.error,
+                                    color:
+                                        appState.isDarkTheme
+                                            ? Colors.white
+                                            : Colors.black,
+                                  ),
+                                );
+                              },
                             );
                           },
                         );
@@ -363,19 +364,35 @@ class _CustomPageState extends State<CustomPage> {
                           fit: BoxFit.cover,
                           loadingBuilder: (context, child, loadingProgress) {
                             if (loadingProgress == null) return child;
-                            return const Center(
-                              child: Text(
-                                'Loading...',
-                                style: TextStyle(color: Colors.white),
-                              ),
+                            return Consumer<AppState>(
+                              builder: (context, appState, child) {
+                                return Center(
+                                  child: Text(
+                                    'Loading...',
+                                    style: TextStyle(
+                                      color:
+                                          appState.isDarkTheme
+                                              ? Colors.white
+                                              : Colors.black,
+                                    ),
+                                  ),
+                                );
+                              },
                             );
                           },
                           errorBuilder: (context, error, stackTrace) {
-                            return const Center(
-                              child: Icon(
-                                FluentIcons.error,
-                                color: Colors.white,
-                              ),
+                            return Consumer<AppState>(
+                              builder: (context, appState, child) {
+                                return Center(
+                                  child: Icon(
+                                    FluentIcons.error,
+                                    color:
+                                        appState.isDarkTheme
+                                            ? Colors.white
+                                            : Colors.black,
+                                  ),
+                                );
+                              },
                             );
                           },
                         );
@@ -407,7 +424,7 @@ class _CustomPageState extends State<CustomPage> {
   @override
   Widget build(BuildContext context) {
     return PageLayout(
-      description: 'Uses a custom repository URL.',
+      description: 'Uses a repository with multiple resolutions.',
       previewTitle: 'Wallpaper Preview:',
       extraButtons: Consumer<AppState>(
         builder: (context, appState, child) {

@@ -1,6 +1,6 @@
 import 'package:win32_registry/win32_registry.dart';
 import 'dart:io';
-import '../constants.dart';
+import '../utils/helpers.dart';
 
 class StartupService {
   final String _runKeyPath =

@@ -68,6 +68,42 @@ class WindowButtons extends StatelessWidget {
   }
 }
 
+// Common window title bar widget with border
+class WindowTitleBarWithBorder extends StatelessWidget {
+  final bool showButtons;
+
+  const WindowTitleBarWithBorder({super.key, this.showButtons = true});
+
+  @override
+  Widget build(BuildContext context) {
+    return Consumer<AppState>(
+      builder: (context, appState, child) {
+        return Container(
+          decoration: BoxDecoration(
+            border: Border(
+              bottom: BorderSide(
+                color:
+                    appState.isDarkTheme
+                        ? const Color(0xFF555555)
+                        : const Color(0xFFAAAAAA),
+                width: 1.0,
+              ),
+            ),
+          ),
+          child: WindowTitleBarBox(
+            child: Row(
+              children: [
+                Expanded(child: MoveWindow()),
+                if (showButtons) const WindowButtons(),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
 // Common page layout widget
 class PageLayout extends StatelessWidget {
   final String description;
@@ -96,14 +132,7 @@ class PageLayout extends StatelessWidget {
                   : const Color(0xFFF5F5F5),
           child: Column(
             children: [
-              WindowTitleBarBox(
-                child: Row(
-                  children: [
-                    Expanded(child: MoveWindow()),
-                    const WindowButtons(),
-                  ],
-                ),
-              ),
+              const WindowTitleBarWithBorder(),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -438,52 +467,4 @@ class WallpaperGrid extends StatelessWidget {
       },
     );
   }
-}
-
-// Common wallpaper context menu
-void showWallpaperContextMenu(
-  //no used!!!!!!!!!!
-  BuildContext context,
-  String url,
-  Function(String) onBan,
-  Function(String) onFavourite,
-) {
-  showDialog(
-    context: context,
-    builder: (BuildContext context) {
-      return ContentDialog(
-        title: const Text('Wallpaper Options'),
-        content: const Text('What would you like to do with this wallpaper?'),
-        actions: [
-          Tooltip(
-            message: 'Ban this wallpaper',
-            child: Button(
-              onPressed: () async {
-                Navigator.of(context).pop();
-                onBan(url);
-              },
-              child: const Text('Ban Wallpaper'),
-            ),
-          ),
-          Tooltip(
-            message: 'Add to favourites',
-            child: Button(
-              onPressed: () {
-                onFavourite(url);
-                Navigator.of(context).pop();
-              },
-              child: const Text('Favourite'),
-            ),
-          ),
-          Tooltip(
-            message: 'Cancel',
-            child: Button(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Cancel'),
-            ),
-          ),
-        ],
-      );
-    },
-  );
 }
