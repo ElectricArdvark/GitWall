@@ -156,7 +156,10 @@ class _WeeklyPageState extends State<WeeklyPage> {
               onFavourite: widget.appState.favouriteWallpaper,
             );
           },
-          child: Image.file(file, fit: BoxFit.fill, key: ValueKey(file.path)),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(8.0),
+            child: Image.file(file, fit: BoxFit.fill, key: ValueKey(file.path)),
+          ),
         );
       },
     );

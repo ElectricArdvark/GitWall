@@ -143,7 +143,6 @@ class AppState extends ChangeNotifier {
     _customCacheManager = CacheManager(
       Config(
         'gitwall_cache',
-        stalePeriod: const Duration(days: 7),
         maxNrOfCacheObjects: 1000,
         repo: JsonCacheInfoRepository(
           path: ('$cachePath\\gitwall_cache.json'),

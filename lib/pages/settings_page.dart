@@ -1,6 +1,7 @@
 import 'package:file_picker/file_picker.dart';
 import 'package:fluent_ui/fluent_ui.dart' hide Colors, Scrollbar;
-import 'package:flutter/material.dart' show Theme, Colors, Scaffold, Scrollbar;
+import 'package:flutter/material.dart'
+    show Theme, Colors, Scaffold, Scrollbar, Switch;
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../state/app_state.dart';
@@ -80,201 +81,212 @@ class _SettingsPageState extends State<SettingsPage> {
                       child: SingleChildScrollView(
                         controller: _scrollController,
                         padding: const EdgeInsets.all(16.0),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            _SettingsCard(
-                              title: 'General',
-                              children: [
-                                _SettingsItem(
-                                  label: 'Theme',
-                                  child: ComboBox<String>(
-                                    value:
-                                        appState.isDarkTheme ? 'Dark' : 'Light',
-                                    items: [
-                                      ComboBoxItem<String>(
-                                        value: 'Dark',
-                                        child: const Text('Dark'),
-                                      ),
-                                      ComboBoxItem<String>(
-                                        value: 'Light',
-                                        child: const Text('Light'),
-                                      ),
-                                    ],
-                                    onChanged: (String? newValue) {
-                                      if (newValue != null) {
-                                        appState.toggleTheme(
-                                          newValue == 'Dark',
-                                        );
-                                      }
-                                    },
-                                  ),
-                                ),
-                                _SettingsItem(
-                                  label: 'Run on startup',
-                                  child: ToggleSwitch(
-                                    checked: appState.autostartEnabled,
-                                    onChanged:
-                                        (v) => appState.toggleAutostart(v),
-                                  ),
-                                ),
-                                _SettingsItem(
-                                  label: 'Hide status messages',
-                                  child: ToggleSwitch(
-                                    checked: appState.hideStatus,
-                                    onChanged:
-                                        (v) => appState.toggleHideStatus(v),
-                                  ),
-                                ),
-                                _SettingsItem(
-                                  label: 'Minimize to tray on close',
-                                  child: ToggleSwitch(
-                                    checked: appState.closeToTrayEnabled,
-                                    onChanged:
-                                        (v) => appState.toggleCloseToTray(v),
-                                  ),
-                                ),
-                                _SettingsItem(
-                                  label: 'Start minimized',
-                                  child: ToggleSwitch(
-                                    checked: appState.startMinimizedEnabled,
-                                    onChanged:
-                                        (v) => appState.toggleStartMinimized(v),
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 20),
-                            _SettingsCard(
-                              title: 'Wallpaper',
-                              children: [
-                                _SettingsItem(
-                                  label: 'Resolution',
-                                  child: ComboBox<String>(
-                                    value: _selectedResolution,
-                                    items:
-                                        availableResolutions
-                                            .map<ComboBoxItem<String>>((
-                                              String value,
-                                            ) {
-                                              return ComboBoxItem<String>(
-                                                value: value,
-                                                child: Text(value),
-                                              );
-                                            })
-                                            .toList(),
-                                    onChanged: (String? newValue) {
-                                      if (newValue != null) {
-                                        setState(
-                                          () => _selectedResolution = newValue,
-                                        );
-                                        appState.updateResolution(newValue);
-                                      }
-                                    },
-                                  ),
-                                ),
-                                _SettingsItem(
-                                  label: 'Change Interval',
-                                  child: ComboBox<int>(
-                                    value: _selectedIntervalMinutes,
-                                    items:
-                                        [
-                                          1,
-                                          15,
-                                          30,
-                                          60,
-                                          180,
-                                          360,
-                                          720,
-                                          1440,
-                                        ].map<ComboBoxItem<int>>((int value) {
-                                          String text;
-                                          if (value < 60)
-                                            text = '$value minutes';
-                                          else if (value == 60)
-                                            text = '1 hour';
-                                          else
-                                            text = '${value ~/ 60} hours';
-                                          return ComboBoxItem<int>(
-                                            value: value,
-                                            child: Text(text),
-                                          );
-                                        }).toList(),
-                                    onChanged: (int? newValue) {
-                                      if (newValue != null) {
-                                        setState(
-                                          () =>
-                                              _selectedIntervalMinutes =
-                                                  newValue,
-                                        );
-                                        appState.updateWallpaperInterval(
-                                          newValue,
-                                        );
-                                      }
-                                    },
-                                  ),
-                                ),
-
-                                _SettingsItem(
-                                  label: 'Storage Location',
-                                  child: Tooltip(
-                                    message:
-                                        'Choose custom wallpaper storage location',
-                                    child: Button(
-                                      onPressed: _pickDirectory,
-                                      child: Text(
-                                        appState.customWallpaperLocation ??
-                                            'Choose Folder',
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 20),
-                            _SettingsCard(
-                              title: 'Repository',
-                              children: [
-                                _SettingsItem(
-                                  label: 'Custom URL',
-                                  child: TextBox(
-                                    controller: _customUrlController,
-                                    placeholder: 'Enter custom repository URL',
-                                    onChanged:
-                                        (value) =>
-                                            appState.setCustomRepoUrl(value),
-                                  ),
-                                ),
-                                _SettingsItem(
-                                  label: 'GitHub Token',
-                                  child: TextBox(
-                                    controller: _githubTokenController,
-                                    placeholder:
-                                        'Enter token for private repos',
-                                    onChanged:
-                                        (value) =>
-                                            appState.setGithubToken(value),
-                                  ),
-                                ),
-                                Tooltip(
-                                  message:
-                                      'Open the default GitWall repository in browser',
-                                  child: HyperlinkButton(
-                                    child: const Text(
-                                      'View Default GitWall Repository',
-                                    ),
-                                    onPressed:
-                                        () => launchUrl(
-                                          Uri.parse(
-                                            'https://github.com/ElectricArdvark/GitWall-WP',
-                                          ),
+                        child: SizedBox(
+                          width: double.infinity,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            children: [
+                              _SettingsCard(
+                                title: 'General',
+                                children: [
+                                  _SettingsItem(
+                                    label: 'Theme',
+                                    child: ComboBox<String>(
+                                      value:
+                                          appState.isDarkTheme
+                                              ? 'Dark'
+                                              : 'Light',
+                                      items: const [
+                                        ComboBoxItem<String>(
+                                          value: 'Dark',
+                                          child: Text('Dark'),
                                         ),
+                                        ComboBoxItem<String>(
+                                          value: 'Light',
+                                          child: Text('Light'),
+                                        ),
+                                      ],
+                                      onChanged: (String? newValue) {
+                                        if (newValue != null) {
+                                          appState.toggleTheme(
+                                            newValue == 'Dark',
+                                          );
+                                        }
+                                      },
+                                    ),
                                   ),
-                                ),
-                              ],
-                            ),
-                          ],
+                                  _SettingsItem(
+                                    label: 'Run on startup',
+                                    child: Switch(
+                                      value: appState.autostartEnabled,
+                                      onChanged:
+                                          (v) => appState.toggleAutostart(v),
+                                    ),
+                                  ),
+                                  _SettingsItem(
+                                    label: 'Hide status messages',
+                                    child: Switch(
+                                      value: appState.hideStatus,
+                                      onChanged:
+                                          (v) => appState.toggleHideStatus(v),
+                                    ),
+                                  ),
+                                  _SettingsItem(
+                                    label: 'Minimize to tray on close',
+                                    child: Switch(
+                                      value: appState.closeToTrayEnabled,
+                                      onChanged:
+                                          (v) => appState.toggleCloseToTray(v),
+                                    ),
+                                  ),
+                                  _SettingsItem(
+                                    label: 'Start minimized',
+                                    child: Switch(
+                                      value: appState.startMinimizedEnabled,
+                                      onChanged:
+                                          (v) =>
+                                              appState.toggleStartMinimized(v),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 20),
+                              _SettingsCard(
+                                title: 'Wallpaper',
+                                children: [
+                                  _SettingsItem(
+                                    label: 'Resolution',
+                                    child: ComboBox<String>(
+                                      value: _selectedResolution,
+                                      items:
+                                          availableResolutions
+                                              .map<ComboBoxItem<String>>((
+                                                String value,
+                                              ) {
+                                                return ComboBoxItem<String>(
+                                                  value: value,
+                                                  child: Text(value),
+                                                );
+                                              })
+                                              .toList(),
+                                      onChanged: (String? newValue) {
+                                        if (newValue != null) {
+                                          setState(
+                                            () =>
+                                                _selectedResolution = newValue,
+                                          );
+                                          appState.updateResolution(newValue);
+                                        }
+                                      },
+                                    ),
+                                  ),
+                                  _SettingsItem(
+                                    label: 'Change Interval',
+                                    child: ComboBox<int>(
+                                      value: _selectedIntervalMinutes,
+                                      items:
+                                          [
+                                            1,
+                                            15,
+                                            30,
+                                            60,
+                                            180,
+                                            360,
+                                            720,
+                                            1440,
+                                          ].map<ComboBoxItem<int>>((int value) {
+                                            String text;
+                                            if (value < 60) {
+                                              text = '$value minutes';
+                                            } else if (value == 60) {
+                                              text = '1 hour';
+                                            } else {
+                                              text = '${value ~/ 60} hours';
+                                            }
+                                            return ComboBoxItem<int>(
+                                              value: value,
+                                              child: Text(text),
+                                            );
+                                          }).toList(),
+                                      onChanged: (int? newValue) {
+                                        if (newValue != null) {
+                                          setState(
+                                            () =>
+                                                _selectedIntervalMinutes =
+                                                    newValue,
+                                          );
+                                          appState.updateWallpaperInterval(
+                                            newValue,
+                                          );
+                                        }
+                                      },
+                                    ),
+                                  ),
+
+                                  _SettingsItem(
+                                    label: 'Storage Location',
+                                    child: Tooltip(
+                                      message:
+                                          'Choose custom wallpaper storage location',
+                                      child: Button(
+                                        onPressed: _pickDirectory,
+                                        child: Text(
+                                          appState.customWallpaperLocation ??
+                                              'Choose Folder',
+                                          softWrap: true,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 20),
+                              _SettingsCard(
+                                title: 'Repository',
+                                children: [
+                                  _SettingsItem(
+                                    label: 'Custom Repository',
+                                    child: TextBox(
+                                      maxLines: null,
+                                      controller: _customUrlController,
+                                      placeholder:
+                                          'Enter custom repository URL',
+                                      onChanged:
+                                          (value) =>
+                                              appState.setCustomRepoUrl(value),
+                                    ),
+                                  ),
+                                  _SettingsItem(
+                                    label: 'GitHub Token',
+                                    child: TextBox(
+                                      maxLines: null,
+                                      controller: _githubTokenController,
+                                      placeholder:
+                                          'Enter token for private repos',
+                                      onChanged:
+                                          (value) =>
+                                              appState.setGithubToken(value),
+                                    ),
+                                  ),
+                                  Tooltip(
+                                    message:
+                                        'Open the default GitWall repository in browser',
+                                    child: HyperlinkButton(
+                                      child: const Text(
+                                        'View Default GitWall Repository',
+                                      ),
+                                      onPressed:
+                                          () => launchUrl(
+                                            Uri.parse(
+                                              'https://github.com/ElectricArdvark/GitWall-WP',
+                                            ),
+                                          ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                     ),
@@ -313,13 +325,16 @@ class _SettingsCard extends StatelessWidget {
                 ),
               ),
             ),
-            Card(
-              backgroundColor:
-                  appState.isDarkTheme
-                      ? const Color(0xFF2D3A3A)
-                      : const Color(0xFFE0E0E0),
-              padding: const EdgeInsets.all(16.0),
-              child: Column(children: children),
+            SizedBox(
+              width: 500,
+              child: Card(
+                backgroundColor:
+                    appState.isDarkTheme
+                        ? const Color(0xFF2D3A3A)
+                        : const Color(0xFFE0E0E0),
+                padding: const EdgeInsets.all(16.0),
+                child: Column(children: children),
+              ),
             ),
           ],
         );
@@ -339,7 +354,7 @@ class _SettingsItem extends StatelessWidget {
     return Consumer<AppState>(
       builder: (context, appState, child) {
         return Padding(
-          padding: const EdgeInsets.symmetric(vertical: 8.0),
+          padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 8),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -350,7 +365,7 @@ class _SettingsItem extends StatelessWidget {
                   fontSize: 16,
                 ),
               ),
-              SizedBox(width: 150, child: this.child),
+              SizedBox(width: 120, child: this.child),
             ],
           ),
         );

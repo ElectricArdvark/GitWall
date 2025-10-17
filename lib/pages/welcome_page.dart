@@ -35,7 +35,14 @@ class _WelcomePageState extends State<WelcomePage> {
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
                     // App Logo
-                    Image.asset('lib/assets/logo.ico', width: 80, height: 80),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(8.0),
+                      child: Image.asset(
+                        'lib/assets/logo.ico',
+                        width: 80,
+                        height: 80,
+                      ),
+                    ),
                     const SizedBox(height: 30),
 
                     // App Name

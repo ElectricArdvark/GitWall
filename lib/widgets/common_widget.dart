@@ -414,35 +414,38 @@ class WallpaperGrid extends StatelessWidget {
                     child: GestureDetector(
                       onTap: () => onTap(imageUrls[index]),
                       onSecondaryTap: () => onSecondaryTap(index),
-                      child: Image.network(
-                        imageUrls[index],
-                        key: ValueKey(imageUrls[index]),
-                        fit: BoxFit.cover,
-                        loadingBuilder: (context, child, loadingProgress) {
-                          if (loadingProgress == null) return child;
-                          return Center(
-                            child: Text(
-                              'Loading...',
-                              style: TextStyle(
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(8.0),
+                        child: Image.network(
+                          imageUrls[index],
+                          key: ValueKey(imageUrls[index]),
+                          fit: BoxFit.cover,
+                          loadingBuilder: (context, child, loadingProgress) {
+                            if (loadingProgress == null) return child;
+                            return Center(
+                              child: Text(
+                                'Loading...',
+                                style: TextStyle(
+                                  color:
+                                      appState.isDarkTheme
+                                          ? Colors.white
+                                          : Colors.black,
+                                ),
+                              ),
+                            );
+                          },
+                          errorBuilder: (context, error, stackTrace) {
+                            return Center(
+                              child: Icon(
+                                FluentIcons.error,
                                 color:
                                     appState.isDarkTheme
                                         ? Colors.white
                                         : Colors.black,
                               ),
-                            ),
-                          );
-                        },
-                        errorBuilder: (context, error, stackTrace) {
-                          return Center(
-                            child: Icon(
-                              FluentIcons.error,
-                              color:
-                                  appState.isDarkTheme
-                                      ? Colors.white
-                                      : Colors.black,
-                            ),
-                          );
-                        },
+                            );
+                          },
+                        ),
                       ),
                     ),
                   );

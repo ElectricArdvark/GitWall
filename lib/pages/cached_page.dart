@@ -233,14 +233,17 @@ class _CachedPageState extends State<CachedPage> {
                       itemIndex: index,
                     );
                   },
-                  child: Image.file(
-                    item['file'],
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) {
-                      return const Center(
-                        child: Icon(FluentIcons.error, color: Colors.white),
-                      );
-                    },
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(8.0),
+                    child: Image.file(
+                      item['file'],
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) {
+                        return const Center(
+                          child: Icon(FluentIcons.error, color: Colors.white),
+                        );
+                      },
+                    ),
                   ),
                 ),
               );

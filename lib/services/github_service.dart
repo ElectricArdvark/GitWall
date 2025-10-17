@@ -16,6 +16,7 @@ class WallpaperDownloadResult {
 class GitHubService {
   String _githubToken = '';
   BaseCacheManager? _cacheManager;
+  int _apiCallCount = 0;
 
   void setToken(String token) {
     _githubToken = token;
@@ -180,6 +181,8 @@ class GitHubService {
     try {
       print('DEBUG: Making HTTP request to GitHub API...');
       final response = await http.get(Uri.parse(contentsUrl), headers: headers);
+      _apiCallCount++;
+      print('DEBUG: Total GitHub API calls made: $_apiCallCount');
       print('DEBUG: GitHub API response status: ${response.statusCode}');
 
       if (response.statusCode == 200) {

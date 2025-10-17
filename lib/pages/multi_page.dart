@@ -336,65 +336,71 @@ class _MultiPageState extends State<MultiPage> {
                     builder: (context, snapshot) {
                       if (snapshot.hasData && snapshot.data != null) {
                         // Use cached file directly
-                        return Image.file(
-                          snapshot.data!,
-                          key: ValueKey(_imageUrls[index]),
-                          fit: BoxFit.cover,
-                          errorBuilder: (context, error, stackTrace) {
-                            return Consumer<AppState>(
-                              builder: (context, appState, child) {
-                                return Center(
-                                  child: Icon(
-                                    FluentIcons.error,
-                                    color:
-                                        appState.isDarkTheme
-                                            ? Colors.white
-                                            : Colors.black,
-                                  ),
-                                );
-                              },
-                            );
-                          },
-                        );
-                      } else {
-                        // Use network image (will use cache if available)
-                        return Image.network(
-                          _imageUrls[index],
-                          key: ValueKey(_imageUrls[index]),
-                          fit: BoxFit.cover,
-                          loadingBuilder: (context, child, loadingProgress) {
-                            if (loadingProgress == null) return child;
-                            return Consumer<AppState>(
-                              builder: (context, appState, child) {
-                                return Center(
-                                  child: Text(
-                                    'Loading...',
-                                    style: TextStyle(
+                        return ClipRRect(
+                          borderRadius: BorderRadius.circular(8.0),
+                          child: Image.file(
+                            snapshot.data!,
+                            key: ValueKey(_imageUrls[index]),
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) {
+                              return Consumer<AppState>(
+                                builder: (context, appState, child) {
+                                  return Center(
+                                    child: Icon(
+                                      FluentIcons.error,
                                       color:
                                           appState.isDarkTheme
                                               ? Colors.white
                                               : Colors.black,
                                     ),
-                                  ),
-                                );
-                              },
-                            );
-                          },
-                          errorBuilder: (context, error, stackTrace) {
-                            return Consumer<AppState>(
-                              builder: (context, appState, child) {
-                                return Center(
-                                  child: Icon(
-                                    FluentIcons.error,
-                                    color:
-                                        appState.isDarkTheme
-                                            ? Colors.white
-                                            : Colors.black,
-                                  ),
-                                );
-                              },
-                            );
-                          },
+                                  );
+                                },
+                              );
+                            },
+                          ),
+                        );
+                      } else {
+                        // Use network image (will use cache if available)
+                        return ClipRRect(
+                          borderRadius: BorderRadius.circular(8.0),
+                          child: Image.network(
+                            _imageUrls[index],
+                            key: ValueKey(_imageUrls[index]),
+                            fit: BoxFit.cover,
+                            loadingBuilder: (context, child, loadingProgress) {
+                              if (loadingProgress == null) return child;
+                              return Consumer<AppState>(
+                                builder: (context, appState, child) {
+                                  return Center(
+                                    child: Text(
+                                      'Loading...',
+                                      style: TextStyle(
+                                        color:
+                                            appState.isDarkTheme
+                                                ? Colors.white
+                                                : Colors.black,
+                                      ),
+                                    ),
+                                  );
+                                },
+                              );
+                            },
+                            errorBuilder: (context, error, stackTrace) {
+                              return Consumer<AppState>(
+                                builder: (context, appState, child) {
+                                  return Center(
+                                    child: Icon(
+                                      FluentIcons.error,
+                                      color:
+                                          appState.isDarkTheme
+                                              ? Colors.white
+                                              : Colors.black,
+                                    ),
+                                  );
+                                },
+                              );
+                            },
+                          ),
                         );
                       }
                     },

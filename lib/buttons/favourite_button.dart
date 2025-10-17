@@ -294,76 +294,85 @@ class FavouriteWallpapersService {
                       final cachedFile = snapshot.data;
                       if (cachedFile != null && cachedFile.existsSync()) {
                         // Use cached file if available
-                        return Image.file(
-                          cachedFile,
-                          fit: BoxFit.cover,
-                          errorBuilder: (context, error, stackTrace) {
-                            // Fallback to network if cached file fails
-                            return Image.network(
-                              favourite['url']!,
-                              fit: BoxFit.cover,
-                              loadingBuilder: (
-                                context,
-                                child,
-                                loadingProgress,
-                              ) {
-                                if (loadingProgress == null) return child;
-                                return Center(
-                                  child: Text(
-                                    'Loading...',
-                                    style: TextStyle(
-                                      color:
-                                          appState.isDarkTheme
-                                              ? Colors.white
-                                              : Colors.black,
-                                    ),
-                                  ),
-                                );
-                              },
-                              errorBuilder: (context, error, stackTrace) {
-                                return Center(
-                                  child: Icon(
-                                    FluentIcons.error,
+                        return ClipRRect(
+                          borderRadius: BorderRadius.circular(8.0),
+                          child: Image.file(
+                            cachedFile,
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) {
+                              // Fallback to network if cached file fails
+                              return ClipRRect(
+                                borderRadius: BorderRadius.circular(8.0),
+                                child: Image.network(
+                                  favourite['url']!,
+                                  fit: BoxFit.cover,
+                                  loadingBuilder: (
+                                    context,
+                                    child,
+                                    loadingProgress,
+                                  ) {
+                                    if (loadingProgress == null) return child;
+                                    return Center(
+                                      child: Text(
+                                        'Loading...',
+                                        style: TextStyle(
+                                          color:
+                                              appState.isDarkTheme
+                                                  ? Colors.white
+                                                  : Colors.black,
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                  errorBuilder: (context, error, stackTrace) {
+                                    return Center(
+                                      child: Icon(
+                                        FluentIcons.error,
+                                        color:
+                                            appState.isDarkTheme
+                                                ? Colors.white
+                                                : Colors.black,
+                                      ),
+                                    );
+                                  },
+                                ),
+                              );
+                            },
+                          ),
+                        );
+                      } else {
+                        // Use network image if not cached
+                        return ClipRRect(
+                          borderRadius: BorderRadius.circular(8.0),
+                          child: Image.network(
+                            favourite['url']!,
+                            fit: BoxFit.cover,
+                            loadingBuilder: (context, child, loadingProgress) {
+                              if (loadingProgress == null) return child;
+                              return Center(
+                                child: Text(
+                                  'Loading...',
+                                  style: TextStyle(
                                     color:
                                         appState.isDarkTheme
                                             ? Colors.white
                                             : Colors.black,
                                   ),
-                                );
-                              },
-                            );
-                          },
-                        );
-                      } else {
-                        // Use network image if not cached
-                        return Image.network(
-                          favourite['url']!,
-                          fit: BoxFit.cover,
-                          loadingBuilder: (context, child, loadingProgress) {
-                            if (loadingProgress == null) return child;
-                            return Center(
-                              child: Text(
-                                'Loading...',
-                                style: TextStyle(
+                                ),
+                              );
+                            },
+                            errorBuilder: (context, error, stackTrace) {
+                              return Center(
+                                child: Icon(
+                                  FluentIcons.error,
                                   color:
                                       appState.isDarkTheme
                                           ? Colors.white
                                           : Colors.black,
                                 ),
-                              ),
-                            );
-                          },
-                          errorBuilder: (context, error, stackTrace) {
-                            return Center(
-                              child: Icon(
-                                FluentIcons.error,
-                                color:
-                                    appState.isDarkTheme
-                                        ? Colors.white
-                                        : Colors.black,
-                              ),
-                            );
-                          },
+                              );
+                            },
+                          ),
                         );
                       }
                     },
